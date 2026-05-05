@@ -1,0 +1,43 @@
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthState
+
+<CascadingAuthenticationState>
+    <AuthorizeView>
+        <Authorized>
+            <nav class="app-topbar">
+                <span class="topbar-logo">WRE — FIG</span>
+                <span class="topbar-subtitle">Field Information Guide</span>
+
+                <div class="topbar-nav">
+                    <NavLink href="/" Match="NavLinkMatch.All" class="topbar-nav-link">
+                        Home
+                    </NavLink>
+
+                    <AuthorizeView Roles="@(AppRoles.PlannerDashboard + "," + AppRoles.FieldSupervisor + "," + AppRoles.DispatchSupervisor)">
+                        <Authorized Context="_">
+                            <NavLink href="/compliance" class="topbar-nav-link">
+                                Compliance
+                            </NavLink>
+                            <NavLink href="/alerts" class="topbar-nav-link">
+                                Alerts
+                            </NavLink>
+                        </Authorized>
+                    </AuthorizeView>
+
+                    <AuthorizeView Roles="@AppRoles.PlannerDashboard">
+                        <Authorized Context="_">
+                            <NavLink href="/users" class="topbar-nav-link">
+                                Users
+                            </NavLink>
+                        </Authorized>
+                    </AuthorizeView>
+                </div>
+
+                <div class="topbar-right">
+                    <span class="topbar-user">@context.User.Identity?.Name</span>
+                    <a href="/Account/Logout" class="btn btn-ghost btn-sm">Sign out</a>
+                </div>
+            </nav>
+        </Authorized>
+    </AuthorizeView>
+</CascadingAuthenticationState>

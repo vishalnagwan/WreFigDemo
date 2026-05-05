@@ -1,0 +1,50 @@
+@page
+@model WreFigDemo.Pages.Account.LoginModel
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WRE FIG — Sign In</title>
+    <link rel="stylesheet" href="~/css/app.css" />
+</head>
+<body class="login-body">
+    <div class="login-card">
+        <div class="login-logo">WRE FIG</div>
+        <h2 class="login-title">Sign In</h2>
+
+        @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+        {
+            <div class="alert-error">@Model.ErrorMessage</div>
+        }
+
+        <form method="post">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="Email" value="@Model.Input.Email"
+                       class="form-control" autofocus autocomplete="username" />
+                <span asp-validation-for="Input.Email" class="field-error"></span>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="Password"
+                       class="form-control" autocomplete="current-password" />
+                <span asp-validation-for="Input.Password" class="field-error"></span>
+            </div>
+            <div class="form-group checkbox-group">
+                <label>
+                    <input type="checkbox" name="RememberMe" value="true"
+                           @(Model.Input.RememberMe ? "checked" : "") />
+                    Remember me
+                </label>
+            </div>
+            <input type="hidden" asp-for="ReturnUrl" />
+            <div asp-validation-summary="ModelOnly" class="field-error"></div>
+            <button type="submit" class="btn btn-primary btn-full">Sign In</button>
+        </form>
+    </div>
+</body>
+</html>

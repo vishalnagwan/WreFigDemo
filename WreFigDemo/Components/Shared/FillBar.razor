@@ -1,0 +1,16 @@
+@* Horizontal fill-rate bar *@
+
+@{
+    var cls = Pct >= 85 ? "good" : Pct >= 60 ? "warn" : "bad";
+}
+
+<div class="fill-bar-wrap">
+    <div class="fill-bar-bg">
+        <div class="fill-bar-fg @cls" style="width:@Pct%"></div>
+    </div>
+    <span class="fill-pct">@Pct%</span>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public int Pct { get; set; }
+}

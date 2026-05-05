@@ -1,0 +1,87 @@
+@page "/alerts"
+@attribute [Authorize(Roles = "PlannerDashboard,FieldSupervisor,DispatchSupervisor")]
+@inject IAuditService AuditSvc
+
+<PageTitle>WRE FIG — Change Alerts</PageTitle>
+
+<div class="alerts-header">
+    <div>
+        <div class="alerts-title">Change alerts</div>
+        <div class="alerts-subtitle">
+            FIG changes affecting the next 72 hours
+            @if (!Loading)
+            {
+                <span> · @AlertItems.Count(a => a.IsUnread) unread</span>
+            }
+        </div>
+    </div>
+    <div class="alerts-filters">
+        <button class="filter-btn @(Filter == "all"    ? "active" : "")" @onclick='() => Filter = "all"'>All</button>
+        <button class="filter-btn @(Filter == "unread" ? "active" : "")" @onclick='() => Filter = "unread"'>Unread</button>
+        <button class="filter-btn @(Filter == "urgent" ? "active" : "")" @onclick='() => Filter = "urgent"'>Urgent only</button>
+    </div>
+</div>
+
+@if (Loading)
+{
+    <div class="loading">Loading…</div>
+}
+else if (!AlertItems.Any())
+{
+    <div class="sketch-card">
+        <p class="empty-state">No recent changes.</p>
+    </div>
+}
+else
+{
+    <div class="sketch-card">
+        @foreach (var group in Groups)
+        {
+            var items = FilteredAlerts.Where(a => a.Urgency == group.Key).ToList();
+            @if (items.Any())
+            {
+                <div class="alert-group-header">@group.Label</div>
+                @foreach (var a in items)
+                {
+                    <AlertItem Alert="a" />
+                }
+            }
+        }
+        @if (!FilteredAlerts.Any())
+        {
+            <p class="empty-state">No alerts match the current filter.</p>
+        }
+    </div>
+}
+
+<div class="alerts-footer">
+    <span>Showing @FilteredAlerts.Count of @AlertItems.Count</span>
+    <button class="alerts-footer-btn">Notification settings</button>
+</div>
+
+@code {
+    private List<AlertVm> AlertItems = [];
+    private bool          Loading    = true;
+    private string        Filter     = "all";
+
+    private record GroupDef(string Key, string Label);
+    private static readonly GroupDef[] Groups =
+    [
+        new("urgent", "WITHIN 24 HOURS · URGENT"),
+        new("mid",    "WITHIN 48 HOURS"),
+        new("low",    "WITHIN 72 HOURS"),
+    ];
+
+    private List<AlertVm> FilteredAlerts => Filter switch
+    {
+        "unread" => AlertItems.Where(a => a.IsUnread).ToList(),
+        "urgent" => AlertItems.Where(a => a.Urgency == "urgent").ToList(),
+        _        => AlertItems
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        AlertItems = await AuditSvc.GetRecentAlertsAsync(count: 100);
+        Loading = false;
+    }
+}

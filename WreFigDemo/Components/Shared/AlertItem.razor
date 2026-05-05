@@ -1,0 +1,24 @@
+@* Single row in the Alerts list — wireframe urgency-bar style *@
+
+<div class="alert-item">
+    <div class="alert-urgency-bar @Alert.Urgency"></div>
+    <div class="alert-body">
+        <div class="alert-title-row">
+            <span class="alert-name @(Alert.IsUnread ? "unread" : "")">@Alert.Title</span>
+            <span class="alert-time">@Alert.TimeDisplay</span>
+        </div>
+        <div class="alert-desc">@Alert.Desc</div>
+        <div class="alert-tags">
+            <span class="alert-tag day-tag">@(Alert.Urgency == "urgent" ? "≤ 24h" : Alert.Urgency == "mid" ? "≤ 48h" : "≤ 72h")</span>
+            @if (Alert.OldValue is not null && Alert.NewValue is not null)
+            {
+                <span class="alert-tag action-tag">@Alert.OldValue &#x2192; @Alert.NewValue</span>
+            }
+            <span class="alert-tag info-tag">@Alert.EntityType · @Alert.UserName</span>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public AlertVm Alert { get; set; } = default!;
+}

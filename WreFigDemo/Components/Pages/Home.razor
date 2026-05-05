@@ -1,0 +1,177 @@
+@page "/"
+@attribute [Authorize]
+@inject IBranchService BranchSvc
+@inject AuthenticationStateProvider AuthState
+@inject NavigationManager Nav
+
+<PageTitle>WRE FIG — All Branches</PageTitle>
+
+@if (Loading)
+{
+    <div class="loading">Loading…</div>
+}
+else
+{
+    <div class="branch-home-header">
+        <div>
+            <div class="branch-home-title">@(IsGlobalView ? "Planner Dashboard" : "Field Office Dashboard")</div>
+            <div class="branch-home-subtitle">
+                @if (IsGlobalView)
+                {
+                    <span>Central Dispatch ·  @RegionOrder.Count() Regions, @Branches.Count branches</span>
+                }
+                else
+                {
+                    <span>@UserName · @Branches.Count branch@(Branches.Count == 1 ? "" : "es") assigned</span>
+                }
+            </div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            @if (IsGlobalView)
+            {
+                <span class="role-pill central">Central Dispatch</span>
+            }
+            else
+            {
+                <span class="role-pill branch">Branch user</span>
+            }
+            <input class="branch-search" type="text"
+                   placeholder="Search branches…"
+                   @bind="SearchText" @bind:event="oninput" />
+        </div>
+    </div>
+
+    @* Month selector *@
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+        <span style="font-size:12px;color:var(--ink-faint);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Month:</span>
+        <div class="month-nav">
+            <button class="month-nav-btn" @onclick="PrevMonth">&#8249;</button>
+            <span class="month-label">@MonthLabel</span>
+            <button class="month-nav-btn" @onclick="NextMonth">&#8250;</button>
+        </div>
+    </div>
+
+    @if (!GroupedBranches.Any())
+    {
+        <div class="region-section last-region" style="text-align:center;padding:30px">
+            <span style="color:var(--ink-faint);font-style:italic">No branches match your search.</span>
+        </div>
+    }
+    else
+    {
+        @foreach (var (region, idx, branches) in GroupedBranches)
+        {
+            var isLast = idx == GroupedBranches.Count - 1;
+            var attentionCount = branches.Count(b => b.Status != "green");
+            <div class="region-section @(isLast ? "last-region" : "")">
+                <div class="region-header">
+                    <span class="region-name">@region · @branches.Count branch@(branches.Count == 1 ? "" : "es")</span>
+                    <span class="region-attn @(attentionCount > 0 ? "alert" : "")">
+                        @(attentionCount == 0 ? "All up to date" : $"{attentionCount} need{(attentionCount == 1 ? "s" : "")} attention")
+                    </span>
+                </div>
+                <div class="branch-grid">
+                    @foreach (var b in branches)
+                    {
+                        <BranchCard Summary="b"
+                                    IsPinned="PinnedIds.Contains(b.BranchId)"
+                                    OnClick="() => GoToSchedule(b.BranchId)"
+                                    OnTogglePin="TogglePin" />
+                    }
+                </div>
+            </div>
+        }
+    }
+
+    <div class="branch-home-footer">
+        <span>Showing @FilteredBranches.Count of @Branches.Count · click a branch to open schedule</span>
+        <span style="color:var(--ink-faint)">@MonthLabel fill rates</span>
+    </div>
+}
+
+@code {
+    private List<BranchSummaryVm> Branches      = [];
+    private string  SearchText                  = string.Empty;
+    private bool    Loading                     = true;
+    private int     Year                        = DateTime.Now.Year;
+    private int     Month                       = DateTime.Now.Month;
+    private string? UserId;
+    private string? UserName;
+    private bool    IsGlobalView                = true;
+
+    private HashSet<int> PinnedIds                = [];
+    private static readonly string[] RegionOrder = ["Mid-Atlantic", "Mid-South", "South", "North"];
+
+    private string MonthLabel => new DateTime(Year, Month, 1).ToString("MMMM yyyy");
+
+    private List<BranchSummaryVm> FilteredBranches =>
+        string.IsNullOrWhiteSpace(SearchText)
+            ? Branches
+            : Branches.Where(b =>
+                b.BranchName.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
+                b.City.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
+                b.State.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
+                b.RegionName.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
+              .ToList();
+
+    private List<(string Region, int Idx, List<BranchSummaryVm> Branches)> GroupedBranches
+    {
+        get
+        {
+            var grouped = FilteredBranches
+                .GroupBy(b => b.RegionName)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            var ordered = RegionOrder
+                .Where(r => grouped.ContainsKey(r))
+                .Select(r => grouped[r])
+                .ToList();
+
+            // Append any regions not in the standard order
+            foreach (var kvp in grouped)
+                if (!RegionOrder.Contains(kvp.Key))
+                    ordered.Add(kvp.Value);
+
+            return ordered.Select((list, i) => (list.First().RegionName, i, list)).ToList();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        UserId   = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        UserName = auth.User.Identity?.Name ?? "User";
+        IsGlobalView = AppRoles.GlobalViewRoles.Any(r => auth.User.IsInRole(r));
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        Loading  = true;
+        Branches = await BranchSvc.GetBranchSummariesAsync(Year, Month, UserId);
+        Loading  = false;
+    }
+
+    private async Task PrevMonth()
+    {
+        Month--;
+        if (Month < 1) { Month = 12; Year--; }
+        await LoadAsync();
+    }
+
+    private async Task NextMonth()
+    {
+        Month++;
+        if (Month > 12) { Month = 1; Year++; }
+        await LoadAsync();
+    }
+
+    private void TogglePin(int branchId)
+    {
+        if (!PinnedIds.Add(branchId))
+            PinnedIds.Remove(branchId);
+    }
+
+    private void GoToSchedule(int branchId) =>
+        Nav.NavigateTo($"/schedule/{branchId}?year={Year}&month={Month}");
+}

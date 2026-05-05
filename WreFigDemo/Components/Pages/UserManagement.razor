@@ -1,0 +1,204 @@
+@page "/users"
+@attribute [Authorize(Roles = "PlannerDashboard")]
+@inject IUserService UserSvc
+@inject AuthenticationStateProvider AuthState
+
+<PageTitle>WRE FIG — User Management</PageTitle>
+
+<div class="page-header">
+    <h1 class="page-title">User Management</h1>
+    <button class="btn btn-primary" @onclick="OpenCreate">+ New User</button>
+</div>
+
+@if (Loading)
+{
+    <div class="loading">Loading…</div>
+}
+else
+{
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Branches</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var u in Users)
+            {
+                <tr>
+                    <td>@u.FullName</td>
+                    <td>@u.Email</td>
+                    <td><span class="role-badge">@u.Role</span></td>
+                    <td>@string.Join(", ", u.BranchNames)</td>
+                    <td><span class="status-pill @(u.IsActive ? "active" : "inactive")">
+                        @(u.IsActive ? "Active" : "Inactive")</span></td>
+                    <td>
+                        <button class="btn btn-ghost btn-sm" @onclick="() => OpenEdit(u)">Edit</button>
+                        @if (u.IsActive)
+                        {
+                            <button class="btn btn-danger btn-sm" @onclick="() => Deactivate(u.Id)">Deactivate</button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (ShowForm)
+{
+    <div class="modal-overlay" @onclick="CloseForm">
+        <div class="modal-card" @onclick:stopPropagation="true">
+            <h2>@(EditId is null ? "New User" : "Edit User")</h2>
+
+            @if (FormErrors.Any())
+            {
+                <div class="alert-error">
+                    @foreach (var e in FormErrors) { <div>@e</div> }
+                </div>
+            }
+
+            <div class="form-group">
+                <label>Full Name</label>
+                <input class="form-control" @bind="FormName" />
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" class="form-control" @bind="FormEmail" />
+            </div>
+            @if (EditId is null)
+            {
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" class="form-control" @bind="FormPassword" />
+                </div>
+            }
+            <div class="form-group">
+                <label>Role</label>
+                <select class="form-control" @bind="FormRole">
+                    @foreach (var r in AllRoles)
+                    {
+                        <option value="@r">@r</option>
+                    }
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Active</label>
+                <input type="checkbox" @bind="FormIsActive" />
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn btn-ghost" @onclick="CloseForm">Cancel</button>
+                <button class="btn btn-primary" @onclick="SaveForm">Save</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<UserListVm> Users = [];
+    private bool Loading           = true;
+    private bool ShowForm          = false;
+    private string? EditId;
+    private string ActorId   = string.Empty;
+    private string ActorName = string.Empty;
+
+    private string FormName     = string.Empty;
+    private string FormEmail    = string.Empty;
+    private string FormPassword = string.Empty;
+    private string FormRole     = AppRoles.Planner;
+    private bool   FormIsActive = true;
+    private List<string> FormErrors = [];
+
+    private static readonly string[] AllRoles =
+    [
+        AppRoles.PlannerDashboard, AppRoles.FieldSupervisor, AppRoles.DispatchSupervisor,
+        AppRoles.Planner, AppRoles.Dispatcher, AppRoles.OtherEmployee
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        ActorId   = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+        ActorName = auth.User.Identity?.Name ?? string.Empty;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        Loading = true;
+        Users   = await UserSvc.GetUsersAsync();
+        Loading = false;
+    }
+
+    private void OpenCreate()
+    {
+        EditId      = null;
+        FormName    = FormEmail = FormPassword = string.Empty;
+        FormRole    = AppRoles.Planner;
+        FormIsActive = true;
+        FormErrors  = [];
+        ShowForm    = true;
+    }
+
+    private void OpenEdit(UserListVm u)
+    {
+        EditId       = u.Id;
+        FormName     = u.FullName;
+        FormEmail    = u.Email;
+        FormPassword = string.Empty;
+        FormRole     = u.Role;
+        FormIsActive = u.IsActive;
+        FormErrors   = [];
+        ShowForm     = true;
+    }
+
+    private void CloseForm() => ShowForm = false;
+
+    private async Task SaveForm()
+    {
+        FormErrors = [];
+        bool ok;
+        IEnumerable<string> errors;
+
+        if (EditId is null)
+        {
+            (ok, errors) = await UserSvc.CreateUserAsync(new CreateUserVm
+            {
+                FullName  = FormName,
+                Email     = FormEmail,
+                Password  = FormPassword,
+                Role      = FormRole,
+                BranchIds = []
+            }, ActorId, ActorName);
+        }
+        else
+        {
+            (ok, errors) = await UserSvc.UpdateUserAsync(new EditUserVm
+            {
+                Id        = EditId,
+                FullName  = FormName,
+                Email     = FormEmail,
+                Role      = FormRole,
+                IsActive  = FormIsActive,
+                BranchIds = []
+            }, ActorId, ActorName);
+        }
+
+        if (!ok) { FormErrors = errors.ToList(); return; }
+
+        ShowForm = false;
+        await LoadAsync();
+    }
+
+    private async Task Deactivate(string userId)
+    {
+        await UserSvc.DeactivateUserAsync(userId, ActorId, ActorName);
+        await LoadAsync();
+    }
+}

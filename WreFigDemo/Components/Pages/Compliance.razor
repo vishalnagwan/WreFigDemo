@@ -1,0 +1,116 @@
+@page "/compliance"
+@attribute [Authorize(Roles = "PlannerDashboard,FieldSupervisor,DispatchSupervisor")]
+@inject IBranchService BranchSvc
+
+<PageTitle>WRE FIG — Branch Compliance</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Branch compliance</h1>
+        <div style="font-size:13px;color:var(--ink-faint);margin-top:2px">
+            @MonthLabel — FIG fill-rate report
+        </div>
+    </div>
+    <div class="month-nav">
+        <button class="month-nav-btn" @onclick="PrevMonth">&#8249;</button>
+        <span class="month-label">@MonthLabel</span>
+        <button class="month-nav-btn" @onclick="NextMonth">&#8250;</button>
+    </div>
+</div>
+
+@if (Loading)
+{
+    <div class="loading">Loading…</div>
+}
+else if (Report is not null)
+{
+    @* KPI row *@
+    <div class="kpi-row">
+        <div class="kpi-card">
+            <div class="kpi-label">Avg fill rate</div>
+            <div class="kpi-value @(Report.AverageFillRate >= 80 ? "good" : "warn")">
+                @Report.AverageFillRate.ToString("0.0")%
+            </div>
+            <div class="kpi-sub">across @Report.Branches.Count branches</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Fully up-to-date</div>
+            <div class="kpi-value good">@Report.UpToDateCount / @Report.Branches.Count</div>
+            <div class="kpi-sub">branches ≥ 85% filled</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Needs attention</div>
+            <div class="kpi-value @(Report.BelowThreshold > 0 ? "warn" : "good")">
+                @Report.BelowThreshold
+            </div>
+            <div class="kpi-sub">branches below threshold</div>
+        </div>
+    </div>
+
+    @* Branch table *@
+    <div class="sketch-card">
+        <table class="branch-table">
+            <thead>
+                <tr>
+                    <th>Branch</th>
+                    <th style="width:220px">Fill rate (month)</th>
+                    <th>Days complete</th>
+                    <th>Last updated</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Report.Branches.OrderBy(b => b.FillRate))
+                {
+                    <tr>
+                        <td style="font-weight:700;font-size:15px">@row.BranchName</td>
+                        <td>
+                            <FillBar Pct="@((int)row.FillRate)" />
+                        </td>
+                        <td>
+                            <span class="text-mono" style="font-size:13px">@row.DaysComplete / @row.TotalWorkdays</span>
+                        </td>
+                        <td><span class="timestamp">@row.LastUpdatedDisplay</span></td>
+                        <td>
+                            <span class="status-pill @row.Status">
+                                @(row.Status == "green" ? "Up to date" : row.Status == "amber" ? "Behind" : "At risk")
+                            </span>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private ComplianceVm? Report;
+    private bool Loading = true;
+    private int  Year    = DateTime.Now.Year;
+    private int  Month   = DateTime.Now.Month;
+
+    private string MonthLabel => new DateTime(Year, Month, 1).ToString("MMMM yyyy");
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        Loading = true;
+        Report  = await BranchSvc.GetComplianceAsync(Year, Month);
+        Loading = false;
+    }
+
+    private async Task PrevMonth()
+    {
+        Month--;
+        if (Month < 1) { Month = 12; Year--; }
+        await LoadAsync();
+    }
+
+    private async Task NextMonth()
+    {
+        Month++;
+        if (Month > 12) { Month = 1; Year++; }
+        await LoadAsync();
+    }
+}

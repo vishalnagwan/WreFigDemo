@@ -1,0 +1,7 @@
+@inject NavigationManager Nav
+
+@code {
+    [Parameter] public string Page { get; set; } = "/";
+
+    protected override void OnInitialized() => Nav.NavigateTo(Page, forceLoad: true);
+}

@@ -1,0 +1,206 @@
+@* Driver Day Detail panel — wireframe style *@
+@inject IScheduleService ScheduleSvc
+@inject IAuditService AuditSvc
+
+<div class="detail-overlay" @onclick="OnClose">
+    <div class="detail-panel" @onclick:stopPropagation="true">
+
+        <button class="panel-close" @onclick="OnClose">&#215;</button>
+
+        @* Top header *@
+        <div class="panel-top">
+            <div class="panel-driver-row">
+                <div class="driver-avatar">@Initials</div>
+                <div class="driver-info">
+                    <h2>@Row.EmployeeName</h2>
+                    <p>@Row.DefaultShift shift</p>
+                </div>
+                <div class="status-badge @(Row.DefaultShift == "PM" ? "pm" : "")">
+                    Working @Row.DefaultShift
+                </div>
+            </div>
+            <div class="panel-date">
+                <span>@DateLabel</span>
+                <strong>Current: @(Cell?.StatusCode ?? "—")</strong>
+            </div>
+        </div>
+
+        @* Info grid *@
+        <div class="panel-section">
+            <div class="panel-section-title">Driver Info</div>
+            <div class="info-grid">
+                <div class="info-block">
+                    <label>Truck</label>
+                    <div class="info-val">
+                        @if (Row.TruckAssignment is not null)
+                        {
+                            @Row.TruckAssignment
+                            @if (Row.TruckId is not null) { <span style="color:var(--ink-faint)"> · @Row.TruckId</span> }
+                        }
+                        else
+                        {
+                            <em style="font-weight:400;color:var(--ink-faint)">unassigned</em>
+                        }
+                    </div>
+                </div>
+                <div class="info-block">
+                    <label>Shift window</label>
+                    <div class="info-val">@ShiftWindow</div>
+                </div>
+                @if (Row.ManagerName is not null)
+                {
+                    <div class="info-block">
+                        <label>Manager</label>
+                        <div class="info-val">@Row.ManagerName</div>
+                    </div>
+                }
+            </div>
+
+            @* Supervisor note *@
+            <div style="margin-top:12px">
+                @if (EditingNote)
+                {
+                    <div class="supervisor-note-box">
+                        <label>Supervisor note</label>
+                        <textarea @bind="NoteText" rows="3" placeholder="Add a note…"></textarea>
+                        <div style="display:flex;gap:8px;margin-top:6px">
+                            <button class="btn btn-primary btn-sm" @onclick="SaveNote">Save note</button>
+                            <button class="btn btn-ghost btn-sm" @onclick="() => EditingNote = false">Cancel</button>
+                        </div>
+                    </div>
+                }
+                else if (!string.IsNullOrWhiteSpace(NoteText))
+                {
+                    <div class="supervisor-note-box">
+                        <label>Supervisor note</label>
+                        <p>@NoteText</p>
+                        @if (CanEdit)
+                        {
+                            <button class="btn btn-ghost btn-sm" style="margin-top:6px" @onclick="() => EditingNote = true">Edit note</button>
+                        }
+                    </div>
+                }
+                else if (CanEdit)
+                {
+                    <div style="margin-top:4px;color:var(--ink-faint);font-size:13px;font-style:italic">
+                        No supervisor note.
+                        <button class="btn btn-ghost btn-sm" style="margin-left:8px" @onclick="() => EditingNote = true">Add note</button>
+                    </div>
+                }
+            </div>
+        </div>
+
+        @* Edit shift codes *@
+        @if (CanEdit)
+        {
+            <div class="panel-section">
+                <div class="panel-section-title">Change status</div>
+                <div class="code-picker">
+                    @foreach (var sc in StatusCodes)
+                    {
+                        <button class="code-btn @(Selected == sc ? "selected" : "")"
+                                @onclick="() => Selected = sc">
+                            <ShiftChip Code="@sc" />
+                        </button>
+                    }
+                </div>
+                <div class="panel-actions" style="padding:0;margin-top:8px">
+                    <button class="btn btn-ghost" @onclick="OnClose">Cancel</button>
+                    <button class="btn btn-primary" @onclick="Save">Save change</button>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="panel-section">
+                <p class="read-only-note">Read-only access — contact your supervisor to make changes.</p>
+            </div>
+        }
+
+        @* Change history *@
+        <div class="panel-section">
+            <div class="change-history">
+                <div class="history-label">Change History</div>
+                @if (LoadingHistory)
+                {
+                    <div style="color:var(--ink-faint);font-size:13px">Loading…</div>
+                }
+                else if (!History.Any())
+                {
+                    <div style="color:var(--ink-faint);font-size:13px;font-style:italic">No changes recorded for this driver.</div>
+                }
+                else
+                {
+                    @foreach (var h in History)
+                    {
+                        <div class="history-item">
+                            <span class="history-dot @h.DotType"></span>
+                            <span>@h.Text</span>
+                            <span class="history-time">@h.TimeAgo</span>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+
+        @* Fleetio stub *@
+        <div class="fleetio-row">
+            <span class="fleetio-dot"></span>
+            <span>Fleetio sync enabled</span>
+            <span class="fleetio-link">View in Fleetio ↗</span>
+        </div>
+
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public EmployeeScheduleRow Row  { get; set; } = default!;
+    [Parameter, EditorRequired] public int                 Day  { get; set; }
+    [Parameter, EditorRequired] public DayCell?            Cell { get; set; }
+    [Parameter] public int  Year    { get; set; }
+    [Parameter] public int  Month   { get; set; }
+    [Parameter] public bool CanEdit { get; set; }
+    [Parameter] public string? UserId   { get; set; }
+    [Parameter] public string? UserName { get; set; }
+    [Parameter] public EventCallback<string> OnSave  { get; set; }
+    [Parameter] public EventCallback         OnClose { get; set; }
+
+    private string? Selected;
+    private string? NoteText;
+    private bool    EditingNote   = false;
+    private bool    LoadingHistory = true;
+    private List<HistoryItemVm> History = [];
+
+    private static readonly string[] StatusCodes = ["WA", "WP", "PTO", "OC", "CO", "TR", "—"];
+
+    private string DateLabel  => new DateTime(Year, Month, Day).ToString("dddd, MMMM d");
+    private string ShiftWindow => Row.DefaultShift == "PM" ? "12:00 PM – 9:00 PM" : "5:00 AM – 2:30 PM";
+    private string Initials    => string.Join("", Row.EmployeeName.Split(' ').Take(2).Select(w => w.Length > 0 ? w[0].ToString() : "")).ToUpper();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Selected = Cell?.StatusCode;
+        EditingNote = false;
+
+        var date = new DateOnly(Year, Month, Day);
+        NoteText = await ScheduleSvc.GetNoteAsync(Row.EmployeeId, date);
+
+        LoadingHistory = true;
+        History = await AuditSvc.GetEmployeeHistoryAsync(Row.EmployeeId, date);
+        LoadingHistory = false;
+    }
+
+    private async Task Save()
+    {
+        if (Selected is not null)
+            await OnSave.InvokeAsync(Selected);
+    }
+
+    private async Task SaveNote()
+    {
+        if (UserId is null) return;
+        var date = new DateOnly(Year, Month, Day);
+        await ScheduleSvc.UpsertNoteAsync(Row.EmployeeId, date, NoteText, UserId, UserName ?? UserId);
+        EditingNote = false;
+    }
+}

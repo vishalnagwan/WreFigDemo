@@ -1,0 +1,79 @@
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using WreFigDemo.Components;
+using WreFigDemo.Data;
+using WreFigDemo.Data.Seed;
+using WreFigDemo.Identity;
+using WreFigDemo.Services;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// EF Core + Identity
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
+    {
+        options.Password.RequireDigit           = true;
+        options.Password.RequireUppercase        = true;
+        options.Password.RequiredLength          = 8;
+        options.Password.RequireNonAlphanumeric  = true;
+        options.SignIn.RequireConfirmedAccount    = false;
+    })
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddDefaultTokenProviders();
+
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.LoginPath        = "/Account/Login";
+    options.LogoutPath       = "/Account/Logout";
+    options.AccessDeniedPath = "/AccessDenied";
+    options.SlidingExpiration = true;
+    options.ExpireTimeSpan   = TimeSpan.FromHours(8);
+});
+
+// Blazor Server
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents();
+
+// Razor Pages (for Login/Logout)
+builder.Services.AddRazorPages();
+
+// App services
+builder.Services.AddScoped<IAuditService,              AuditService>();
+builder.Services.AddScoped<IBranchService,             BranchService>();
+builder.Services.AddScoped<IScheduleService,           ScheduleService>();
+builder.Services.AddScoped<IUserService,               UserService>();
+builder.Services.AddScoped<IEmailNotificationService,  EmailNotificationService>();
+builder.Services.AddHostedService<ComplianceNotificationJob>();
+
+builder.Services.AddCascadingAuthenticationState();
+
+var app = builder.Build();
+
+// Run migrations and seed
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await db.Database.MigrateAsync();
+    await DataSeeder.SeedAsync(scope.ServiceProvider);
+}
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/Error");
+    app.UseHsts();
+}
+
+app.UseHttpsRedirection();
+app.UseStaticFiles();
+app.UseAntiforgery();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapRazorPages();
+app.MapRazorComponents<App>()
+   .AddInteractiveServerRenderMode();
+
+app.Run();

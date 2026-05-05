@@ -1,0 +1,44 @@
+@* Compact branch card for the Home page region-grouped grid *@
+
+<div class="branch-card @(Summary.IsAcquisition ? "acquisition" : "") @(IsPinned ? "pinned" : "")"
+     @onclick="OnClick">
+    <div class="branch-card-name">
+        <span>@Summary.BranchName</span>
+        <span class="branch-star @(IsPinned ? "active" : "")"
+              @onclick:stopPropagation="true"
+              @onclick="TogglePin"
+              title="@(IsPinned ? "Unpin branch" : "Pin branch")">&#9733;</span>
+    </div>
+
+    @if (Summary.IsAcquisition)
+    {
+        <div class="branch-meta">acquisition</div>
+    }
+    else
+    {
+        <div class="branch-meta">@Summary.DriverCount driver@(Summary.DriverCount == 1 ? "" : "s")</div>
+        <FillBar Pct="@((int)Summary.FillRate)" />
+    }
+
+    <div style="margin-top:8px">
+        <span class="branch-status-pill @Summary.Status">@StatusLabel</span>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public BranchSummaryVm    Summary      { get; set; } = default!;
+    [Parameter]                 public bool               IsPinned     { get; set; }
+    [Parameter]                 public EventCallback      OnClick      { get; set; }
+    [Parameter]                 public EventCallback<int> OnTogglePin  { get; set; }
+
+    private string StatusLabel => Summary.Status switch
+    {
+        "green"       => "Up to date",
+        "amber"       => "Stale",
+        "red"         => "Needs attention",
+        "acquisition" => "Under construction",
+        _             => Summary.Status
+    };
+
+    private async Task TogglePin() => await OnTogglePin.InvokeAsync(Summary.BranchId);
+}

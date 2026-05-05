@@ -1,0 +1,362 @@
+@page "/schedule/{BranchId:int}"
+@attribute [Authorize]
+@inject IScheduleService ScheduleSvc
+@inject IBranchService BranchSvc
+@inject IAuditService AuditSvc
+@inject AuthenticationStateProvider AuthState
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<PageTitle>Schedule — @(Summary?.BranchName ?? "Branch")</PageTitle>
+
+@if (Loading)
+{
+    <div class="loading">Loading…</div>
+}
+else if (Grid is not null)
+{
+    @* Header *@
+    <div class="page-header">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" @onclick='() => Nav.NavigateTo("/")'>&#8592; All branches</button>
+            <h1 class="page-title">@Summary?.BranchName</h1>
+            @if (Summary is not null)
+            {
+                <span class="branch-status-pill @Summary.Status" style="font-size:11px">
+                    @(Summary.Status == "green" ? "Up to date" : Summary.Status == "amber" ? "Stale" : "Needs attention")
+                </span>
+            }
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            @if (UnreadAlerts > 0)
+            {
+                <div class="alerts-bell-wrap" title="View change alerts" @onclick='() => Nav.NavigateTo("/alerts")'>
+                    <span style="font-size:20px">&#128276;</span>
+                    <span class="alerts-badge">@UnreadAlerts</span>
+                </div>
+            }
+            <div class="month-nav">
+                <button class="month-nav-btn" @onclick="PrevMonth">&#8249;</button>
+                <span class="month-label">@MonthLabel</span>
+                <button class="month-nav-btn" @onclick="NextMonth">&#8250;</button>
+            </div>
+        </div>
+    </div>
+
+    @* Fill bar *@
+    @if (Summary is not null)
+    {
+        <div class="fill-bar-container">
+            <FillBar Pct="@((int)Summary.FillRate)" />
+        </div>
+    }
+
+    @* Paint mode toolbar *@
+    @if (CanEdit)
+    {
+        <div class="paint-toolbar">
+            <span class="paint-toolbar-label">Apply status:</span>
+            @foreach (var chip in PaintChips)
+            {
+                <span class="paint-chip @chip.Cls @(PaintMode == chip.Code ? "active" : "")"
+                      @onclick="() => TogglePaint(chip.Code)">
+                    @chip.Label
+                </span>
+            }
+            <span class="paint-help">
+                @if (PaintMode is not null)
+                {
+                    <span>Click cells to paint · Esc to exit</span>
+                }
+                else
+                {
+                    <span>Click a status to start painting · tick rows for bulk paint</span>
+                }
+            </span>
+        </div>
+
+        @if (PaintMode is not null)
+        {
+            <div class="paint-status">
+                <span class="pulse"></span>
+                <span>
+                    <strong>@(PaintChips.FirstOrDefault(c => c.Code == PaintMode)?.Label ?? PaintMode)</strong> loaded
+                    @if (SelectedRows.Count > 1)
+                    {
+                        <span> · <strong>@SelectedRows.Count rows selected</strong> — click any day to paint across all</span>
+                    }
+                </span>
+            </div>
+        }
+    }
+
+    @* Grid *@
+    <div class="schedule-scroll-wrap">
+        <table class="schedule-table">
+            <thead>
+                <tr>
+                    @if (CanEdit)
+                    {
+                        <th class="row-check-col">
+                            <span class="row-check @(SelectedRows.Count == Grid.Employees.Count && Grid.Employees.Count > 0 ? "checked" : "")"
+                                  @onclick="ToggleAllRows" title="Select all"></span>
+                        </th>
+                    }
+                    <th class="emp-col">Employee</th>
+                    <th class="shift-col">Shift</th>
+                    @foreach (var d in Grid.Days)
+                    {
+                        <th class="day-col @(d.IsWeekend ? "weekend" : "")">
+                            @d.DayAbbr @d.Day
+                        </th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Grid.Employees.Any())
+                {
+                    <tr>
+                        <td colspan="@(33 + (CanEdit ? 1 : 0))" class="empty-state">
+                            No employees configured for this branch yet.
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var row in Grid.Employees)
+                    {
+                        var isSelected = SelectedRows.Contains(row.EmployeeId);
+                        <tr class="@(isSelected ? "row-selected" : "")">
+                            @if (CanEdit)
+                            {
+                                <td class="row-check-col">
+                                    <span class="row-check @(isSelected ? "checked" : "")"
+                                          @onclick="() => ToggleRow(row.EmployeeId)"
+                                          @onclick:stopPropagation="true"
+                                          title="@(isSelected ? "Deselect row" : "Select row for bulk paint")"></span>
+                                </td>
+                            }
+                            <td class="emp-col" style="font-weight:600">@row.EmployeeName</td>
+                            <td class="shift-col">
+                                <span class="shift-badge @(row.DefaultShift == "PM" ? "pm" : "")">
+                                    @row.DefaultShift
+                                </span>
+                            </td>
+                            @foreach (var d in Grid.Days)
+                            {
+                                var cell = row.Cells[d.Day];
+                                var key  = $"{row.EmployeeId}-{d.Day}";
+                                var just = JustPainted.Contains(key);
+                                <td class="day-col @(d.IsWeekend ? "weekend" : "")"
+                                    @onclick="() => HandleCellClick(row, d.Day, cell)">
+                                    <ShiftChip Code="@cell.StatusCode"
+                                               HasNote="@cell.HasNote"
+                                               JustPainted="@just" />
+                                </td>
+                            }
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @* Legend *@
+    <div class="legend">
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--purple-am);border-color:var(--purple-am-border)"></span>WA — Working AM</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--pink-pm);border-color:var(--pink-pm-border)"></span>WP — Working PM</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--pto-bg);border-color:var(--pto-bg)"></span><span style="color:var(--ink-light)">PTO</span></div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--callout-bg);border-color:var(--callout-border)"></span>CO — Call-out</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--oncall-bg);border-color:var(--oncall-border)"></span>OC — On-call</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--training-bg);border-color:var(--training-border)"></span>TR — Training</div>
+        <div class="legend-item" style="margin-left:auto"><span style="color:var(--note-dot);font-size:10px">●</span>&nbsp;has note</div>
+    </div>
+
+    @* Day detail panel *@
+    @if (DetailRow is not null)
+    {
+        <DayDetailPanel Row="DetailRow" Day="DetailDay" Cell="DetailCell"
+                        Year="Year" Month="Month"
+                        CanEdit="CanEdit"
+                        UserId="UserId" UserName="UserName"
+                        OnSave="SaveCell" OnClose="CloseDetail" />
+    }
+}
+
+@code {
+    [Parameter] public int BranchId { get; set; }
+    [SupplyParameterFromQuery] public int Year  { get; set; } = DateTime.Now.Year;
+    [SupplyParameterFromQuery] public int Month { get; set; } = DateTime.Now.Month;
+
+    private ScheduleGridVm?  Grid;
+    private BranchSummaryVm? Summary;
+    private bool             Loading = true;
+    private bool             CanEdit;
+    private string?          UserId;
+    private string?          UserName;
+    private int              UnreadAlerts;
+
+    private EmployeeScheduleRow? DetailRow;
+    private int                  DetailDay;
+    private DayCell?             DetailCell;
+
+    private string? PaintMode;
+    private HashSet<int> SelectedRows = [];
+    private HashSet<string> JustPainted = [];
+
+    private string MonthLabel => new DateTime(Year, Month, 1).ToString("MMMM yyyy");
+
+    private record PaintChipDef(string Code, string Label, string Cls);
+    private static readonly PaintChipDef[] PaintChips =
+    [
+        new("WA",  "WA",    "wa"),
+        new("WP",  "WP",    "wp"),
+        new("PTO", "PTO",   "pto"),
+        new("CO",  "CO",    "co"),
+        new("OC",  "OC",    "oc"),
+        new("clear","Clear","clear"),
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        UserId   = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        UserName = auth.User.Identity?.Name ?? string.Empty;
+        CanEdit  = auth.User.IsInRole(AppRoles.PlannerDashboard)
+                || auth.User.IsInRole(AppRoles.Planner)
+                || auth.User.IsInRole(AppRoles.Dispatcher);
+        await LoadAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await JS.InvokeVoidAsync("registerEscKey", DotNetObjectReference.Create(this));
+    }
+
+    [JSInvokable]
+    public void OnEscapeKey()
+    {
+        PaintMode = null;
+        SelectedRows.Clear();
+        StateHasChanged();
+    }
+
+    private async Task LoadAsync()
+    {
+        Loading = true;
+        Grid    = await ScheduleSvc.GetGridAsync(BranchId, Year, Month);
+        Summary = await BranchSvc.GetBranchSummaryAsync(BranchId, Year, Month);
+        var alerts = await AuditSvc.GetRecentAlertsAsync(BranchId, 50);
+        UnreadAlerts = alerts.Count(a => a.IsUnread);
+        Loading = false;
+    }
+
+    private async Task PrevMonth()
+    {
+        Month--;
+        if (Month < 1) { Month = 12; Year--; }
+        Nav.NavigateTo($"/schedule/{BranchId}?year={Year}&month={Month}", replace: true);
+        await LoadAsync();
+    }
+
+    private async Task NextMonth()
+    {
+        Month++;
+        if (Month > 12) { Month = 1; Year++; }
+        Nav.NavigateTo($"/schedule/{BranchId}?year={Year}&month={Month}", replace: true);
+        await LoadAsync();
+    }
+
+    private void TogglePaint(string code)
+    {
+        PaintMode = PaintMode == code ? null : code;
+    }
+
+    private void ToggleRow(int employeeId)
+    {
+        if (!SelectedRows.Add(employeeId))
+            SelectedRows.Remove(employeeId);
+    }
+
+    private void ToggleAllRows()
+    {
+        if (Grid is null) return;
+        if (SelectedRows.Count == Grid.Employees.Count)
+            SelectedRows.Clear();
+        else
+            SelectedRows = Grid.Employees.Select(e => e.EmployeeId).ToHashSet();
+    }
+
+    private void HandleCellClick(EmployeeScheduleRow row, int day, DayCell cell)
+    {
+        if (PaintMode is null)
+        {
+            OpenDetail(row, day, cell);
+            return;
+        }
+
+        var targets = SelectedRows.Count > 1 && SelectedRows.Contains(row.EmployeeId)
+            ? SelectedRows.ToList()
+            : [row.EmployeeId];
+
+        foreach (var empId in targets)
+        {
+            var targetRow = Grid!.Employees.FirstOrDefault(e => e.EmployeeId == empId);
+            if (targetRow is null) continue;
+
+            var targetCell = targetRow.Cells[day];
+            var newCode = PaintMode == "clear" ? "—" : PaintMode;
+            targetCell.StatusCode = newCode;
+
+            var key = $"{empId}-{day}";
+            JustPainted.Add(key);
+            _ = ClearPaintFlashAsync(key);
+
+            _ = PersistCellAsync(empId, day, newCode);
+        }
+    }
+
+    private async Task PersistCellAsync(int empId, int day, string code)
+    {
+        if (UserId is null) return;
+        var date = new DateOnly(Year, Month, day);
+        await ScheduleSvc.UpsertCellAsync(empId, date, code, UserId, UserName!);
+    }
+
+    private async Task ClearPaintFlashAsync(string key)
+    {
+        await Task.Delay(700);
+        JustPainted.Remove(key);
+        StateHasChanged();
+    }
+
+    private void OpenDetail(EmployeeScheduleRow row, int day, DayCell cell)
+    {
+        DetailRow  = row;
+        DetailDay  = day;
+        DetailCell = cell;
+    }
+
+    private void CloseDetail()
+    {
+        DetailRow  = null;
+        DetailCell = null;
+    }
+
+    private async Task SaveCell(string newCode)
+    {
+        if (DetailRow is null || !CanEdit) return;
+
+        var date = new DateOnly(Year, Month, DetailDay);
+        await ScheduleSvc.UpsertCellAsync(DetailRow.EmployeeId, date, newCode, UserId!, UserName!);
+
+        DetailCell!.StatusCode = newCode;
+        DetailCell.IsNew       = false;
+
+        if (Summary is not null)
+            Summary = await BranchSvc.GetBranchSummaryAsync(BranchId, Year, Month);
+
+        CloseDetail();
+    }
+}
