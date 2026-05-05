@@ -100,10 +100,11 @@ public static class DataSeeder
         await db.SaveChangesAsync();
         } // end regions/branches guard
 
-        // ── Employees (skip if already seeded) ────────────────────────────────
-        if (!await db.Employees.AnyAsync())
+        // ── Employees — seed per branch so adding new branches never gets skipped ──
         {
         var B = (await db.Branches.ToListAsync()).ToDictionary(b => b.City);
+        var existingBranchIds = (await db.Employees.AsNoTracking()
+            .Select(e => e.BranchId).Distinct().ToListAsync()).ToHashSet();
 
         var employees = new List<Employee>
         {
@@ -230,12 +231,18 @@ public static class DataSeeder
             new() { Name = "Pete Salazar",   DefaultShift = "PM", TruckAssignment = "4,800g", TruckId = "#FL6003", ManagerName = "A. Varga",     JobTitle = "Driver",         ResourceCategory = "IG/Grease", BranchId = B["Orlando"].Id },
         };
 
-        db.Employees.AddRange(employees);
-        await db.SaveChangesAsync();
+        // Only insert employees for branches that have none yet
+        var newEmployees = employees
+            .Where(e => !existingBranchIds.Contains(e.BranchId))
+            .ToList();
 
-        // Seed April 2026 schedule for all employees
-        await SeedAprilScheduleAsync(db, employees);
-        } // end employees guard
+        if (newEmployees.Count > 0)
+        {
+            db.Employees.AddRange(newEmployees);
+            await db.SaveChangesAsync();
+            await SeedAprilScheduleAsync(db, newEmployees);
+        }
+        } // end employees block
     }
 
     private static async Task SeedAprilScheduleAsync(AppDbContext db, List<Employee> employees)
