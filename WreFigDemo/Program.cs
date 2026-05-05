@@ -43,6 +43,7 @@ builder.Services.AddRazorPages();
 builder.Services.AddScoped<IAuditService,              AuditService>();
 builder.Services.AddScoped<IBranchService,             BranchService>();
 builder.Services.AddScoped<IScheduleService,           ScheduleService>();
+builder.Services.AddScoped<IStatusCodeService,         StatusCodeService>();
 builder.Services.AddScoped<IUserService,               UserService>();
 builder.Services.AddScoped<IEmailNotificationService,  EmailNotificationService>();
 builder.Services.AddHostedService<ComplianceNotificationJob>();

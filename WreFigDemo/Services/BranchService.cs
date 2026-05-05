@@ -24,20 +24,30 @@ public class BranchService(AppDbContext db, UserManager<AppUser> userManager) : 
         var firstDay = new DateOnly(year, month, 1);
         var lastDay  = new DateOnly(year, month, DateTime.DaysInMonth(year, month));
 
-        var entries = await db.ScheduleEntries
+        // Build set of workday dates to filter out weekends in memory
+        var workdayDates = Enumerable.Range(1, DateTime.DaysInMonth(year, month))
+            .Select(d => new DateOnly(year, month, d))
+            .Where(d => d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday)
+            .ToHashSet();
+
+        // Pull all saved entries for the month (includes weekend "—" rows from seeder)
+        var rawEntries = await db.ScheduleEntries
             .AsNoTracking()
             .Where(e => e.Date >= firstDay && e.Date <= lastDay
                         && (branchIds == null || branchIds.Contains(e.Employee!.BranchId)))
-            .GroupBy(e => e.Employee!.BranchId)
-            .Select(g => new
-            {
-                BranchId    = g.Key,
-                FilledCount = g.Count(e => e.StatusCode != "—" && e.StatusCode != null),
-                LastUpdated = g.Max(e => (DateTime?)e.UpdatedAt)
-            })
+            .Select(e => new { BranchId = e.Employee!.BranchId, e.Date, e.StatusCode, e.UpdatedAt })
             .ToListAsync();
 
-        var entriesMap = entries.ToDictionary(e => e.BranchId);
+        // Cells with no DB row at all default to WA/WP (filled).
+        // Only workday cells explicitly saved as "—" count as unfilled.
+        var entriesMap = rawEntries
+            .GroupBy(e => e.BranchId)
+            .ToDictionary(g => g.Key, g => new
+            {
+                UnfilledCount = g.Count(e => workdayDates.Contains(e.Date)
+                                             && (e.StatusCode == "—" || e.StatusCode == null)),
+                LastUpdated   = g.Max(e => (DateTime?)e.UpdatedAt)
+            });
 
         var employeeCountMap = await db.Employees
             .AsNoTracking()
@@ -50,8 +60,8 @@ public class BranchService(AppDbContext db, UserManager<AppUser> userManager) : 
         {
             var empCount    = employeeCountMap.GetValueOrDefault(b.Id, 0);
             var totalSlots  = empCount * workdays;
-            var filled      = entriesMap.TryGetValue(b.Id, out var e) ? e.FilledCount : 0;
-            var fillRate    = totalSlots == 0 ? 0.0 : Math.Round(filled * 100.0 / totalSlots, 1);
+            var unfilled    = entriesMap.TryGetValue(b.Id, out var e) ? e.UnfilledCount : 0;
+            var fillRate    = totalSlots == 0 ? 0.0 : Math.Round((totalSlots - unfilled) * 100.0 / totalSlots, 1);
 
             return new BranchSummaryVm
             {

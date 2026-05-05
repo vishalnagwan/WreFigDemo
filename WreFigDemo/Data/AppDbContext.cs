@@ -15,6 +15,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<ScheduleEntry> ScheduleEntries => Set<ScheduleEntry>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<AppUserBranch> UserBranches => Set<AppUserBranch>();
+    public DbSet<ScheduleStatusCode> StatusCodes => Set<ScheduleStatusCode>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -51,5 +52,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
 
         builder.Entity<AuditLog>()
             .HasIndex(a => a.Timestamp);
+
+        builder.Entity<ScheduleStatusCode>()
+            .HasKey(s => s.Code);
     }
 }

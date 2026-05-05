@@ -1,9 +1,12 @@
 @* Driver Day Detail panel — wireframe style *@
+@using WreFigDemo.Models.Entities
 @inject IScheduleService ScheduleSvc
 @inject IAuditService AuditSvc
+@inject IStatusCodeService StatusCodeSvc
 
-<div class="detail-overlay" @onclick="OnClose">
-    <div class="detail-panel" @onclick:stopPropagation="true">
+<div class="detail-overlay">
+    <div class="detail-backdrop" @onclick="OnClose"></div>
+    <div class="detail-panel">
 
         <button class="panel-close" @onclick="OnClose">&#215;</button>
 
@@ -96,11 +99,11 @@
             <div class="panel-section">
                 <div class="panel-section-title">Change status</div>
                 <div class="code-picker">
-                    @foreach (var sc in StatusCodes)
+                    @foreach (var sc in PickerCodes)
                     {
-                        <button class="code-btn @(Selected == sc ? "selected" : "")"
-                                @onclick="() => Selected = sc">
-                            <ShiftChip Code="@sc" />
+                        <button class="code-btn @(Selected == sc.Code ? "selected" : "")"
+                                @onclick="() => Selected = sc.Code">
+                            <ShiftChip Code="@sc.Code" />
                         </button>
                     }
                 </div>
@@ -167,11 +170,10 @@
 
     private string? Selected;
     private string? NoteText;
-    private bool    EditingNote   = false;
+    private bool    EditingNote    = false;
     private bool    LoadingHistory = true;
-    private List<HistoryItemVm> History = [];
-
-    private static readonly string[] StatusCodes = ["WA", "WP", "PTO", "OC", "CO", "TR", "—"];
+    private List<HistoryItemVm>          History     = [];
+    private List<ScheduleStatusCode>     PickerCodes = [];
 
     private string DateLabel  => new DateTime(Year, Month, Day).ToString("dddd, MMMM d");
     private string ShiftWindow => Row.DefaultShift == "PM" ? "12:00 PM – 9:00 PM" : "5:00 AM – 2:30 PM";
@@ -179,8 +181,11 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        Selected = Cell?.StatusCode;
+        Selected    = Cell?.StatusCode;
         EditingNote = false;
+
+        var allCodes = await StatusCodeSvc.GetAllAsync();
+        PickerCodes  = allCodes.Where(s => s.ShowInPicker).ToList();
 
         var date = new DateOnly(Year, Month, Day);
         NoteText = await ScheduleSvc.GetNoteAsync(Row.EmployeeId, date);

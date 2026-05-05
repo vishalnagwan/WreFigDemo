@@ -36,6 +36,21 @@ public static class DataSeeder
 
     private static async Task SeedBranchDataAsync(AppDbContext db)
     {
+        // ── Status Codes ───────────────────────────────────────────────────────
+        if (!await db.StatusCodes.AnyAsync())
+        {
+            db.StatusCodes.AddRange(
+                new() { Code = "WA",  Label = "WA",  CssClass = "wa",    Description = "Working AM",    SortOrder = 1, ShowInPaintBar = true,  ShowInPicker = true  },
+                new() { Code = "WP",  Label = "WP",  CssClass = "wp",    Description = "Working PM",    SortOrder = 2, ShowInPaintBar = true,  ShowInPicker = true  },
+                new() { Code = "PTO", Label = "PTO", CssClass = "pto",   Description = "Paid Time Off", SortOrder = 3, ShowInPaintBar = true,  ShowInPicker = true  },
+                new() { Code = "OC",  Label = "OC",  CssClass = "oc",    Description = "On-Call",       SortOrder = 4, ShowInPaintBar = true,  ShowInPicker = true  },
+                new() { Code = "CO",  Label = "CO",  CssClass = "co",    Description = "Call-Out",      SortOrder = 5, ShowInPaintBar = true,  ShowInPicker = true  },
+                new() { Code = "TR",  Label = "TR",  CssClass = "tr",    Description = "Training",      SortOrder = 6, ShowInPaintBar = false, ShowInPicker = true  },
+                new() { Code = "—",   Label = "—",   CssClass = "empty", Description = "No Entry",      SortOrder = 7, ShowInPaintBar = false, ShowInPicker = true  }
+            );
+            await db.SaveChangesAsync();
+        }
+
         // ── Regions & Branches (skip if already seeded) ────────────────────────
         if (!await db.Regions.AnyAsync())
         {

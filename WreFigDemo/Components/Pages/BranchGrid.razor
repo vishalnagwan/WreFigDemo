@@ -1,8 +1,10 @@
 @page "/schedule/{BranchId:int}"
 @attribute [Authorize]
+@using WreFigDemo.Models.Entities
 @inject IScheduleService ScheduleSvc
 @inject IBranchService BranchSvc
 @inject IAuditService AuditSvc
+@inject IStatusCodeService StatusCodeSvc
 @inject AuthenticationStateProvider AuthState
 @inject NavigationManager Nav
 @inject IJSRuntime JS
@@ -56,13 +58,15 @@ else if (Grid is not null)
     {
         <div class="paint-toolbar">
             <span class="paint-toolbar-label">Apply status:</span>
-            @foreach (var chip in PaintChips)
+            @foreach (var chip in PaintBarCodes)
             {
-                <span class="paint-chip @chip.Cls @(PaintMode == chip.Code ? "active" : "")"
+                <span class="paint-chip @chip.CssClass @(PaintMode == chip.Code ? "active" : "")"
                       @onclick="() => TogglePaint(chip.Code)">
                     @chip.Label
                 </span>
             }
+            <span class="paint-chip clear @(PaintMode == "clear" ? "active" : "")"
+                  @onclick='() => TogglePaint("clear")'>Clear</span>
             <span class="paint-help">
                 @if (PaintMode is not null)
                 {
@@ -80,7 +84,7 @@ else if (Grid is not null)
             <div class="paint-status">
                 <span class="pulse"></span>
                 <span>
-                    <strong>@(PaintChips.FirstOrDefault(c => c.Code == PaintMode)?.Label ?? PaintMode)</strong> loaded
+                    <strong>@(PaintMode == "clear" ? "Clear" : StatusCodeSvc.GetLabel(PaintMode))</strong> loaded
                     @if (SelectedRows.Count > 1)
                     {
                         <span> · <strong>@SelectedRows.Count rows selected</strong> — click any day to paint across all</span>
@@ -203,19 +207,9 @@ else if (Grid is not null)
     private string? PaintMode;
     private HashSet<int> SelectedRows = [];
     private HashSet<string> JustPainted = [];
+    private List<ScheduleStatusCode> PaintBarCodes = [];
 
     private string MonthLabel => new DateTime(Year, Month, 1).ToString("MMMM yyyy");
-
-    private record PaintChipDef(string Code, string Label, string Cls);
-    private static readonly PaintChipDef[] PaintChips =
-    [
-        new("WA",  "WA",    "wa"),
-        new("WP",  "WP",    "wp"),
-        new("PTO", "PTO",   "pto"),
-        new("CO",  "CO",    "co"),
-        new("OC",  "OC",    "oc"),
-        new("clear","Clear","clear"),
-    ];
 
     protected override async Task OnInitializedAsync()
     {
@@ -245,6 +239,8 @@ else if (Grid is not null)
     private async Task LoadAsync()
     {
         Loading = true;
+        var allCodes = await StatusCodeSvc.GetAllAsync();
+        PaintBarCodes = allCodes.Where(s => s.ShowInPaintBar).ToList();
         Grid    = await ScheduleSvc.GetGridAsync(BranchId, Year, Month);
         Summary = await BranchSvc.GetBranchSummaryAsync(BranchId, Year, Month);
         var alerts = await AuditSvc.GetRecentAlertsAsync(BranchId, 50);

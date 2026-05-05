@@ -574,11 +574,16 @@ tr.row-selected td { background: inherit; }
 /* ─── Day detail panel ──────────────────────────────────────────────────── */
 .detail-overlay {
   position: fixed; inset: 0;
-  background: rgba(0,0,0,0.35);
   z-index: 200;
   display: flex; align-items: flex-start; justify-content: flex-end;
 }
+.detail-backdrop {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 0;
+}
 .detail-panel {
+  position: relative; z-index: 1;
   width: 420px; max-width: 100%; height: 100vh;
   background: var(--paper); overflow-y: auto;
   box-shadow: -4px 0 24px rgba(0,0,0,0.12);
