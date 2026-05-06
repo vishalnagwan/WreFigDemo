@@ -59,12 +59,23 @@ builder.Services.AddCascadingAuthenticationState();
 
 var app = builder.Build();
 
-// Run migrations and seed
+// Run migrations and seed — wrapped so a DB config error shows a helpful log, not a silent crash
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();
-    await DataSeeder.SeedAsync(scope.ServiceProvider);
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    try
+    {
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await db.Database.MigrateAsync();
+        await DataSeeder.SeedAsync(scope.ServiceProvider);
+        logger.LogInformation("Database migration and seed completed successfully.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogCritical(ex, "Database startup failed. Check ConnectionStrings:DefaultConnection. Message: {Message}", ex.Message);
+        // Re-throw so the app service restarts and the error appears in Azure logs
+        throw;
+    }
 }
 
 if (!app.Environment.IsDevelopment())

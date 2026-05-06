@@ -927,8 +927,10 @@ td.day-col.note-alert .shift-chip {
   box-shadow: var(--shadow); padding: 36px 40px; width: 380px; max-width: 100%;
 }
 .login-logo {
-  font-size: 22px; font-weight: 700; color: var(--accent); margin-bottom: 6px;
-  letter-spacing: -0.02em;
+  margin-bottom: 16px; text-align: left;
+}
+.login-logo-img {
+  max-width: 220px; height: auto; display: block;
 }
 .login-title {
   font-size: 18px; font-weight: 600; color: var(--ink); margin-bottom: 24px;
