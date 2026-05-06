@@ -1,6 +1,7 @@
 @page "/users"
 @attribute [Authorize(Roles = "PlannerDashboard")]
 @inject IUserService UserSvc
+@inject IBranchService BranchSvc
 @inject AuthenticationStateProvider AuthState
 
 <PageTitle>WRE FIG — User Management</PageTitle>
@@ -34,7 +35,7 @@ else
                     <td>@u.FullName</td>
                     <td>@u.Email</td>
                     <td><span class="role-badge">@u.Role</span></td>
-                    <td>@string.Join(", ", u.BranchNames)</td>
+                    <td>@(u.BranchNames.Any() ? string.Join(", ", u.BranchNames) : "—")</td>
                     <td><span class="status-pill @(u.IsActive ? "active" : "inactive")">
                         @(u.IsActive ? "Active" : "Inactive")</span></td>
                     <td>
@@ -87,6 +88,30 @@ else
                     }
                 </select>
             </div>
+
+            <div class="form-group">
+                <label>Branches</label>
+                @if (AllBranches.Any())
+                {
+                    <div class="branch-checklist">
+                        @foreach (var (id, name) in AllBranches)
+                        {
+                            var branchId = id;
+                            <label class="branch-check-item">
+                                <input type="checkbox"
+                                       checked="@FormBranchIds.Contains(branchId)"
+                                       @onchange="e => ToggleBranch(branchId, (bool)e.Value!)" />
+                                @name
+                            </label>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <span style="font-size:13px;color:var(--ink-faint)">No branches available.</span>
+                }
+            </div>
+
             <div class="form-group">
                 <label>Active</label>
                 <input type="checkbox" @bind="FormIsActive" />
@@ -101,19 +126,21 @@ else
 }
 
 @code {
-    private List<UserListVm> Users = [];
-    private bool Loading           = true;
-    private bool ShowForm          = false;
+    private List<UserListVm>           Users      = [];
+    private List<(int Id, string Name)> AllBranches = [];
+    private bool   Loading    = true;
+    private bool   ShowForm   = false;
     private string? EditId;
-    private string ActorId   = string.Empty;
-    private string ActorName = string.Empty;
+    private string ActorId    = string.Empty;
+    private string ActorName  = string.Empty;
 
-    private string FormName     = string.Empty;
-    private string FormEmail    = string.Empty;
-    private string FormPassword = string.Empty;
-    private string FormRole     = AppRoles.Planner;
-    private bool   FormIsActive = true;
-    private List<string> FormErrors = [];
+    private string      FormName     = string.Empty;
+    private string      FormEmail    = string.Empty;
+    private string      FormPassword = string.Empty;
+    private string      FormRole     = AppRoles.Planner;
+    private bool        FormIsActive = true;
+    private HashSet<int> FormBranchIds = [];
+    private List<string> FormErrors   = [];
 
     private static readonly string[] AllRoles =
     [
@@ -123,9 +150,10 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        var auth = await AuthState.GetAuthenticationStateAsync();
+        var auth  = await AuthState.GetAuthenticationStateAsync();
         ActorId   = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
         ActorName = auth.User.Identity?.Name ?? string.Empty;
+        AllBranches = await BranchSvc.GetBranchListAsync();
         await LoadAsync();
     }
 
@@ -138,24 +166,32 @@ else
 
     private void OpenCreate()
     {
-        EditId      = null;
-        FormName    = FormEmail = FormPassword = string.Empty;
-        FormRole    = AppRoles.Planner;
-        FormIsActive = true;
-        FormErrors  = [];
-        ShowForm    = true;
+        EditId        = null;
+        FormName      = FormEmail = FormPassword = string.Empty;
+        FormRole      = AppRoles.Planner;
+        FormIsActive  = true;
+        FormBranchIds = [];
+        FormErrors    = [];
+        ShowForm      = true;
     }
 
     private void OpenEdit(UserListVm u)
     {
-        EditId       = u.Id;
-        FormName     = u.FullName;
-        FormEmail    = u.Email;
-        FormPassword = string.Empty;
-        FormRole     = u.Role;
-        FormIsActive = u.IsActive;
-        FormErrors   = [];
-        ShowForm     = true;
+        EditId        = u.Id;
+        FormName      = u.FullName;
+        FormEmail     = u.Email;
+        FormPassword  = string.Empty;
+        FormRole      = u.Role;
+        FormIsActive  = u.IsActive;
+        FormBranchIds = u.BranchIds.ToHashSet();
+        FormErrors    = [];
+        ShowForm      = true;
+    }
+
+    private void ToggleBranch(int branchId, bool isChecked)
+    {
+        if (isChecked) FormBranchIds.Add(branchId);
+        else           FormBranchIds.Remove(branchId);
     }
 
     private void CloseForm() => ShowForm = false;
@@ -174,7 +210,7 @@ else
                 Email     = FormEmail,
                 Password  = FormPassword,
                 Role      = FormRole,
-                BranchIds = []
+                BranchIds = FormBranchIds.ToList()
             }, ActorId, ActorName);
         }
         else
@@ -186,7 +222,7 @@ else
                 Email     = FormEmail,
                 Role      = FormRole,
                 IsActive  = FormIsActive,
-                BranchIds = []
+                BranchIds = FormBranchIds.ToList()
             }, ActorId, ActorName);
         }
 

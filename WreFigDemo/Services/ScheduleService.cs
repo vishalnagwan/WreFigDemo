@@ -5,10 +5,12 @@ using WreFigDemo.Models.ViewModels;
 
 namespace WreFigDemo.Services;
 
-public class ScheduleService(AppDbContext db, IAuditService audit) : IScheduleService
+public class ScheduleService(IDbContextFactory<AppDbContext> dbFactory, IAuditService audit) : IScheduleService
 {
     public async Task<ScheduleGridVm> GetGridAsync(int branchId, int year, int month)
     {
+        await using var db = await dbFactory.CreateDbContextAsync();
+
         var firstDay = new DateOnly(year, month, 1);
         var lastDay  = new DateOnly(year, month, DateTime.DaysInMonth(year, month));
 
@@ -76,6 +78,8 @@ public class ScheduleService(AppDbContext db, IAuditService audit) : IScheduleSe
     public async Task UpsertCellAsync(int employeeId, DateOnly date, string statusCode,
                                       string editorUserId, string editorUserName)
     {
+        await using var db = await dbFactory.CreateDbContextAsync();
+
         var existing = await db.ScheduleEntries
             .FirstOrDefaultAsync(e => e.EmployeeId == employeeId && e.Date == date);
 
@@ -124,6 +128,7 @@ public class ScheduleService(AppDbContext db, IAuditService audit) : IScheduleSe
 
     public async Task<string?> GetNoteAsync(int employeeId, DateOnly date)
     {
+        await using var db = await dbFactory.CreateDbContextAsync();
         var entry = await db.ScheduleEntries
             .AsNoTracking()
             .FirstOrDefaultAsync(e => e.EmployeeId == employeeId && e.Date == date);
@@ -131,8 +136,11 @@ public class ScheduleService(AppDbContext db, IAuditService audit) : IScheduleSe
     }
 
     public async Task UpsertNoteAsync(int employeeId, DateOnly date, string? note,
-                                      string editorUserId, string editorUserName)
+                                      string editorUserId, string editorUserName,
+                                      string? currentStatusCode = null)
     {
+        await using var db = await dbFactory.CreateDbContextAsync();
+
         var existing = await db.ScheduleEntries
             .FirstOrDefaultAsync(e => e.EmployeeId == employeeId && e.Date == date);
 
@@ -142,7 +150,7 @@ public class ScheduleService(AppDbContext db, IAuditService audit) : IScheduleSe
             {
                 EmployeeId = employeeId,
                 Date       = date,
-                StatusCode = "—",
+                StatusCode = currentStatusCode ?? "—",
                 Note       = note,
                 CreatedAt  = DateTime.UtcNow,
                 CreatedBy  = editorUserId,

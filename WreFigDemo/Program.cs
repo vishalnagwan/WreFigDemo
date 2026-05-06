@@ -12,6 +12,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// Factory for Blazor Server services — each operation gets its own short-lived context
+builder.Services.AddDbContextFactory<AppDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")),
+    ServiceLifetime.Scoped);
+
 builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
     {
         options.Password.RequireDigit           = true;
@@ -40,12 +45,14 @@ builder.Services.AddRazorComponents()
 builder.Services.AddRazorPages();
 
 // App services
-builder.Services.AddScoped<IAuditService,              AuditService>();
-builder.Services.AddScoped<IBranchService,             BranchService>();
-builder.Services.AddScoped<IScheduleService,           ScheduleService>();
-builder.Services.AddScoped<IStatusCodeService,         StatusCodeService>();
-builder.Services.AddScoped<IUserService,               UserService>();
-builder.Services.AddScoped<IEmailNotificationService,  EmailNotificationService>();
+builder.Services.AddScoped<IAuditService,AuditService>();
+builder.Services.AddScoped<IBranchService,BranchService>();
+builder.Services.AddScoped<IScheduleService,ScheduleService>();
+builder.Services.AddScoped<IStatusCodeService,StatusCodeService>();
+builder.Services.AddScoped<IUserService,UserService>();
+builder.Services.AddScoped<IEmailNotificationService,EmailNotificationService>();
+builder.Services.AddScoped<NoteViewStateService>();
+builder.Services.AddScoped<AlertReadStateService>();
 builder.Services.AddHostedService<ComplianceNotificationJob>();
 
 builder.Services.AddCascadingAuthenticationState();

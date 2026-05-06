@@ -9,6 +9,6 @@ public interface IAuditService
                   string entityType, string entityId,
                   string? oldValue = null, string? newValue = null);
 
-    Task<List<AlertVm>> GetRecentAlertsAsync(int? branchId = null, int count = 50);
+    Task<List<AlertVm>> GetRecentAlertsAsync(string? userId = null, int? branchId = null, int count = 50);
     Task<List<HistoryItemVm>> GetEmployeeHistoryAsync(int employeeId, DateOnly date, int count = 10);
 }

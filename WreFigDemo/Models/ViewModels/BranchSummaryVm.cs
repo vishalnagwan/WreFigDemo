@@ -11,6 +11,7 @@ public class BranchSummaryVm
     public int      DriverCount   { get; set; }
     public double   FillRate      { get; set; }
     public DateTime? LastUpdated  { get; set; }
+    public bool     HasNotes      { get; set; }
 
     public string Status => IsAcquisition ? "acquisition"
         : FillRate >= 85 ? "green"

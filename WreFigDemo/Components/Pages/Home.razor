@@ -3,6 +3,7 @@
 @inject IBranchService BranchSvc
 @inject AuthenticationStateProvider AuthState
 @inject NavigationManager Nav
+@inject NoteViewStateService NoteViewState
 
 <PageTitle>WRE FIG — All Branches</PageTitle>
 
@@ -13,42 +14,29 @@
 else
 {
     <div class="branch-home-header">
-        <div>
-            <div class="branch-home-title">@(IsGlobalView ? "Planner Dashboard" : "Field Office Dashboard")</div>
-            <div class="branch-home-subtitle">
-                @if (IsGlobalView)
-                {
-                    <span>Central Dispatch ·  @RegionOrder.Count() Regions, @Branches.Count branches</span>
-                }
-                else
-                {
-                    <span>@UserName · @Branches.Count branch@(Branches.Count == 1 ? "" : "es") assigned</span>
-                }
-            </div>
-        </div>
+        <div class="branch-home-title">@DashboardTitle</div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-            @if (IsGlobalView)
-            {
-                <span class="role-pill central">Central Dispatch</span>
-            }
-            else
-            {
-                <span class="role-pill branch">Branch user</span>
-            }
             <input class="branch-search" type="text"
                    placeholder="Search branches…"
                    @bind="SearchText" @bind:event="oninput" />
+            <button class="btn btn-ghost btn-sm refresh-btn" title="Refresh" @onclick="LoadAsync">&#8635;</button>
         </div>
     </div>
 
     @* Month selector *@
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">
         <span style="font-size:12px;color:var(--ink-faint);font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Month:</span>
-        <div class="month-nav">
+        <div class="month-tab-nav">
             <button class="month-nav-btn" @onclick="PrevMonth">&#8249;</button>
-            <span class="month-label">@MonthLabel</span>
-            <button class="month-nav-btn" @onclick="NextMonth">&#8250;</button>
+            <button class="month-tab @(IsViewingCurrentMonth ? "active" : "")" @onclick="GoToCurrentMonth">This Month</button>
+            <button class="month-tab @(IsViewingNextMonth ? "active" : "")"    @onclick="GoToNextMonth">Next Month</button>
+            <button class="month-nav-btn" disabled="@(!CanGoForward)" @onclick="NextMonth"
+                    style="@(!CanGoForward ? "opacity:0.3;cursor:default" : "")">&#8250;</button>
         </div>
+        @if (!IsViewingCurrentMonth && !IsViewingNextMonth)
+        {
+            <span class="month-label-aside">@MonthLabel</span>
+        }
     </div>
 
     @if (!GroupedBranches.Any())
@@ -75,6 +63,7 @@ else
                     {
                         <BranchCard Summary="b"
                                     IsPinned="PinnedIds.Contains(b.BranchId)"
+                                    HasUnviewedNotes="b.HasNotes && !NoteViewState.IsBranchViewed(b.BranchId)"
                                     OnClick="() => GoToSchedule(b.BranchId)"
                                     OnTogglePin="TogglePin" />
                     }
@@ -97,12 +86,29 @@ else
     private int     Month                       = DateTime.Now.Month;
     private string? UserId;
     private string? UserName;
+    private string? UserRole;
     private bool    IsGlobalView                = true;
+
+    private string DashboardTitle => UserRole switch
+    {
+        AppRoles.PlannerDashboard   => "Planner Dashboard",
+        AppRoles.FieldSupervisor    => "Field Supervisor Dashboard",
+        AppRoles.DispatchSupervisor => "Dispatch Supervisor Dashboard",
+        _                           => "Read Only Dashboard"
+    };
 
     private HashSet<int> PinnedIds                = [];
     private static readonly string[] RegionOrder = ["Mid-Atlantic", "Mid-South", "South", "North"];
 
     private string MonthLabel => new DateTime(Year, Month, 1).ToString("MMMM yyyy");
+
+    private static int  _nowYear  => DateTime.Now.Year;
+    private static int  _nowMonth => DateTime.Now.Month;
+    private (int Y, int M) NextMonthDate => _nowMonth == 12 ? (_nowYear + 1, 1) : (_nowYear, _nowMonth + 1);
+
+    private bool IsViewingCurrentMonth => Year == _nowYear  && Month == _nowMonth;
+    private bool IsViewingNextMonth    => Year == NextMonthDate.Y && Month == NextMonthDate.M;
+    private bool CanGoForward          => !IsViewingNextMonth;
 
     private List<BranchSummaryVm> FilteredBranches =>
         string.IsNullOrWhiteSpace(SearchText)
@@ -141,6 +147,7 @@ else
         var auth = await AuthState.GetAuthenticationStateAsync();
         UserId   = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         UserName = auth.User.Identity?.Name ?? "User";
+        UserRole = AppRoles.All.FirstOrDefault(r => auth.User.IsInRole(r));
         IsGlobalView = AppRoles.GlobalViewRoles.Any(r => auth.User.IsInRole(r));
         await LoadAsync();
     }
@@ -161,8 +168,22 @@ else
 
     private async Task NextMonth()
     {
+        if (!CanGoForward) return;
         Month++;
         if (Month > 12) { Month = 1; Year++; }
+        await LoadAsync();
+    }
+
+    private async Task GoToCurrentMonth()
+    {
+        Year  = _nowYear;
+        Month = _nowMonth;
+        await LoadAsync();
+    }
+
+    private async Task GoToNextMonth()
+    {
+        (Year, Month) = NextMonthDate;
         await LoadAsync();
     }
 
@@ -172,6 +193,9 @@ else
             PinnedIds.Remove(branchId);
     }
 
-    private void GoToSchedule(int branchId) =>
+    private void GoToSchedule(int branchId)
+    {
+        NoteViewState.MarkBranchViewed(branchId);
         Nav.NavigateTo($"/schedule/{branchId}?year={Year}&month={Month}");
+    }
 }

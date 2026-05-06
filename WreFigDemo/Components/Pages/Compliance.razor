@@ -1,6 +1,7 @@
 @page "/compliance"
-@attribute [Authorize(Roles = "PlannerDashboard,FieldSupervisor,DispatchSupervisor")]
+@attribute [Authorize(Roles = "PlannerDashboard,FieldSupervisor,DispatchSupervisor,Planner")]
 @inject IBranchService BranchSvc
+@inject AuthenticationStateProvider AuthState
 
 <PageTitle>WRE FIG — Branch Compliance</PageTitle>
 
@@ -8,13 +9,21 @@
     <div>
         <h1 class="page-title">Branch compliance</h1>
         <div style="font-size:13px;color:var(--ink-faint);margin-top:2px">
-            @MonthLabel — FIG fill-rate report
+            @(IsViewingCurrentMonth ? "This month" : IsViewingNextMonth ? "Next month" : MonthLabel) — FIG fill-rate report
         </div>
     </div>
-    <div class="month-nav">
-        <button class="month-nav-btn" @onclick="PrevMonth">&#8249;</button>
-        <span class="month-label">@MonthLabel</span>
-        <button class="month-nav-btn" @onclick="NextMonth">&#8250;</button>
+    <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+        <div class="month-tab-nav">
+            <button class="month-nav-btn" @onclick="PrevMonth">&#8249;</button>
+            <button class="month-tab @(IsViewingCurrentMonth ? "active" : "")" @onclick="GoToCurrentMonth">This Month</button>
+            <button class="month-tab @(IsViewingNextMonth ? "active" : "")"    @onclick="GoToNextMonth">Next Month</button>
+            <button class="month-nav-btn" disabled="@(!CanGoForward)" @onclick="NextMonth"
+                    style="@(!CanGoForward ? "opacity:0.3;cursor:default" : "")">&#8250;</button>
+        </div>
+        @if (!IsViewingCurrentMonth && !IsViewingNextMonth)
+        {
+            <span class="month-label-aside">@MonthLabel</span>
+        }
     </div>
 </div>
 
@@ -85,18 +94,32 @@ else if (Report is not null)
 
 @code {
     private ComplianceVm? Report;
-    private bool Loading = true;
-    private int  Year    = DateTime.Now.Year;
-    private int  Month   = DateTime.Now.Month;
+    private bool    Loading = true;
+    private int     Year    = DateTime.Now.Year;
+    private int     Month   = DateTime.Now.Month;
+    private string? UserId;
 
     private string MonthLabel => new DateTime(Year, Month, 1).ToString("MMMM yyyy");
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    private static int  _nowYear  => DateTime.Now.Year;
+    private static int  _nowMonth => DateTime.Now.Month;
+    private (int Y, int M) NextMonthDate => _nowMonth == 12 ? (_nowYear + 1, 1) : (_nowYear, _nowMonth + 1);
+
+    private bool IsViewingCurrentMonth => Year == _nowYear  && Month == _nowMonth;
+    private bool IsViewingNextMonth    => Year == NextMonthDate.Y && Month == NextMonthDate.M;
+    private bool CanGoForward          => !IsViewingNextMonth;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        UserId   = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        await LoadAsync();
+    }
 
     private async Task LoadAsync()
     {
         Loading = true;
-        Report  = await BranchSvc.GetComplianceAsync(Year, Month);
+        Report  = await BranchSvc.GetComplianceAsync(Year, Month, UserId);
         Loading = false;
     }
 
@@ -109,8 +132,22 @@ else if (Report is not null)
 
     private async Task NextMonth()
     {
+        if (!CanGoForward) return;
         Month++;
         if (Month > 12) { Month = 1; Year++; }
+        await LoadAsync();
+    }
+
+    private async Task GoToCurrentMonth()
+    {
+        Year  = _nowYear;
+        Month = _nowMonth;
+        await LoadAsync();
+    }
+
+    private async Task GoToNextMonth()
+    {
+        (Year, Month) = NextMonthDate;
         await LoadAsync();
     }
 }

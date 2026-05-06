@@ -6,10 +6,12 @@ using WreFigDemo.Models.ViewModels;
 
 namespace WreFigDemo.Services;
 
-public class BranchService(AppDbContext db, UserManager<AppUser> userManager) : IBranchService
+public class BranchService(IDbContextFactory<AppDbContext> dbFactory, UserManager<AppUser> userManager) : IBranchService
 {
     public async Task<List<BranchSummaryVm>> GetBranchSummariesAsync(int year, int month, string? userId = null)
     {
+        await using var db = await dbFactory.CreateDbContextAsync();
+
         var branchIds = await GetAccessibleBranchIdsAsync(userId);
 
         var branches = await db.Branches
@@ -24,13 +26,11 @@ public class BranchService(AppDbContext db, UserManager<AppUser> userManager) : 
         var firstDay = new DateOnly(year, month, 1);
         var lastDay  = new DateOnly(year, month, DateTime.DaysInMonth(year, month));
 
-        // Build set of workday dates to filter out weekends in memory
         var workdayDates = Enumerable.Range(1, DateTime.DaysInMonth(year, month))
             .Select(d => new DateOnly(year, month, d))
             .Where(d => d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday)
             .ToHashSet();
 
-        // Pull all saved entries for the month (includes weekend "—" rows from seeder)
         var rawEntries = await db.ScheduleEntries
             .AsNoTracking()
             .Where(e => e.Date >= firstDay && e.Date <= lastDay
@@ -38,8 +38,6 @@ public class BranchService(AppDbContext db, UserManager<AppUser> userManager) : 
             .Select(e => new { BranchId = e.Employee!.BranchId, e.Date, e.StatusCode, e.UpdatedAt })
             .ToListAsync();
 
-        // Cells with no DB row at all default to WA/WP (filled).
-        // Only workday cells explicitly saved as "—" count as unfilled.
         var entriesMap = rawEntries
             .GroupBy(e => e.BranchId)
             .ToDictionary(g => g.Key, g => new
@@ -55,6 +53,16 @@ public class BranchService(AppDbContext db, UserManager<AppUser> userManager) : 
             .GroupBy(e => e.BranchId)
             .Select(g => new { BranchId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(g => g.BranchId, g => g.Count);
+
+        // Branches that have at least one supervisor note this month
+        var branchesWithNotes = (await db.ScheduleEntries
+            .AsNoTracking()
+            .Where(e => e.Date >= firstDay && e.Date <= lastDay
+                        && e.Note != null && e.Note != ""
+                        && (branchIds == null || branchIds.Contains(e.Employee!.BranchId)))
+            .Select(e => e.Employee!.BranchId)
+            .Distinct()
+            .ToListAsync()).ToHashSet();
 
         return branches.Select(b =>
         {
@@ -73,7 +81,8 @@ public class BranchService(AppDbContext db, UserManager<AppUser> userManager) : 
                 IsAcquisition = b.IsAcquisition,
                 DriverCount   = empCount,
                 FillRate      = fillRate,
-                LastUpdated   = entriesMap.TryGetValue(b.Id, out var ev) ? ev.LastUpdated : null
+                LastUpdated   = entriesMap.TryGetValue(b.Id, out var ev) ? ev.LastUpdated : null,
+                HasNotes      = branchesWithNotes.Contains(b.Id)
             };
         }).ToList();
     }
@@ -84,9 +93,23 @@ public class BranchService(AppDbContext db, UserManager<AppUser> userManager) : 
         return summaries.FirstOrDefault(s => s.BranchId == branchId);
     }
 
-    public async Task<ComplianceVm> GetComplianceAsync(int year, int month)
+    public async Task<List<(int Id, string Name)>> GetBranchListAsync()
     {
-        var summaries = await GetBranchSummariesAsync(year, month);
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var rows = await db.Branches
+            .AsNoTracking()
+            .Where(b => b.IsActive)
+            .OrderBy(b => b.Name)
+            .Select(b => new { b.Id, b.Name })
+            .ToListAsync();
+        return rows.Select(b => (b.Id, b.Name)).ToList();
+    }
+
+    public async Task<ComplianceVm> GetComplianceAsync(int year, int month, string? userId = null)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+
+        var summaries = await GetBranchSummariesAsync(year, month, userId);
         var workdays  = GetWorkdayCount(year, month);
 
         var empCounts = await db.Employees
@@ -119,8 +142,9 @@ public class BranchService(AppDbContext db, UserManager<AppUser> userManager) : 
         var roles = await userManager.GetRolesAsync(user);
 
         if (AppRoles.GlobalViewRoles.Any(r => roles.Contains(r)))
-            return null; // all branches
+            return null;
 
+        await using var db = await dbFactory.CreateDbContextAsync();
         return (await db.UserBranches
             .AsNoTracking()
             .Where(ub => ub.UserId == userId)

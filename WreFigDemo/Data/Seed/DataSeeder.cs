@@ -37,19 +37,52 @@ public static class DataSeeder
     private static async Task SeedBranchDataAsync(AppDbContext db)
     {
         // ── Status Codes ───────────────────────────────────────────────────────
-        if (!await db.StatusCodes.AnyAsync())
+        // Upsert status codes — runs on every startup so renames / new codes always apply.
+        var desired = new List<ScheduleStatusCode>
         {
-            db.StatusCodes.AddRange(
-                new() { Code = "WA",  Label = "WA",  CssClass = "wa",    Description = "Working AM",    SortOrder = 1, ShowInPaintBar = true,  ShowInPicker = true  },
-                new() { Code = "WP",  Label = "WP",  CssClass = "wp",    Description = "Working PM",    SortOrder = 2, ShowInPaintBar = true,  ShowInPicker = true  },
-                new() { Code = "PTO", Label = "PTO", CssClass = "pto",   Description = "Paid Time Off", SortOrder = 3, ShowInPaintBar = true,  ShowInPicker = true  },
-                new() { Code = "OC",  Label = "OC",  CssClass = "oc",    Description = "On-Call",       SortOrder = 4, ShowInPaintBar = true,  ShowInPicker = true  },
-                new() { Code = "CO",  Label = "CO",  CssClass = "co",    Description = "Call-Out",      SortOrder = 5, ShowInPaintBar = true,  ShowInPicker = true  },
-                new() { Code = "TR",  Label = "TR",  CssClass = "tr",    Description = "Training",      SortOrder = 6, ShowInPaintBar = false, ShowInPicker = true  },
-                new() { Code = "—",   Label = "—",   CssClass = "empty", Description = "No Entry",      SortOrder = 7, ShowInPaintBar = false, ShowInPicker = true  }
-            );
-            await db.SaveChangesAsync();
+            new() { Code = "WA", Label = "WA", CssClass = "wa",    Description = "Working AM — daytime, typical 4-6 AM start", SortOrder = 1, ShowInPaintBar = true,  ShowInPicker = true  },
+            new() { Code = "WP", Label = "WP", CssClass = "wp",    Description = "Working PM — overnight shift",                SortOrder = 2, ShowInPaintBar = true,  ShowInPicker = true  },
+            new() { Code = "O",  Label = "O",  CssClass = "o",     Description = "PTO — pre-approved time off",                 SortOrder = 3, ShowInPaintBar = true,  ShowInPicker = true  },
+            new() { Code = "CO", Label = "CO", CssClass = "co",    Description = "Called Out — unplanned absence",              SortOrder = 4, ShowInPaintBar = true,  ShowInPicker = true  },
+            new() { Code = "OC", Label = "OC", CssClass = "oc",    Description = "On-Call (24h or per branch convention)",      SortOrder = 5, ShowInPaintBar = true,  ShowInPicker = true  },
+            new() { Code = "TR", Label = "TR", CssClass = "tr",    Description = "Training — driver in training",               SortOrder = 6, ShowInPaintBar = true,  ShowInPicker = true  },
+            new() { Code = "HD", Label = "HD", CssClass = "hd",    Description = "Holiday (used sparingly)",                    SortOrder = 7, ShowInPaintBar = true,  ShowInPicker = true  },
+            new() { Code = "WX", Label = "WX", CssClass = "wx",    Description = "Weather event or branch closure",             SortOrder = 8, ShowInPaintBar = false, ShowInPicker = true  },
+            new() { Code = "—",  Label = "—",  CssClass = "empty", Description = "Default / no entry",                         SortOrder = 9, ShowInPaintBar = false, ShowInPicker = true  },
+        };
+
+        var existing = await db.StatusCodes.ToListAsync();
+        var existingByCode = existing.ToDictionary(s => s.Code);
+
+        foreach (var d in desired)
+        {
+            if (existingByCode.TryGetValue(d.Code, out var row))
+            {
+                // Update mutable fields so colour / label changes take effect
+                row.Label        = d.Label;
+                row.CssClass     = d.CssClass;
+                row.Description  = d.Description;
+                row.SortOrder    = d.SortOrder;
+                row.ShowInPaintBar = d.ShowInPaintBar;
+                row.ShowInPicker   = d.ShowInPicker;
+            }
+            else
+            {
+                db.StatusCodes.Add(d);
+            }
         }
+
+        // Migrate old "PTO" code → "O" in both the StatusCodes table and ScheduleEntries
+        if (existingByCode.TryGetValue("PTO", out var ptoRow))
+        {
+            // Remap any schedule entries that still reference the old code
+            await db.ScheduleEntries
+                .Where(e => e.StatusCode == "PTO")
+                .ExecuteUpdateAsync(s => s.SetProperty(e => e.StatusCode, "O"));
+            db.StatusCodes.Remove(ptoRow);
+        }
+
+        await db.SaveChangesAsync();
 
         // ── Regions & Branches (skip if already seeded) ────────────────────────
         if (!await db.Regions.AnyAsync())
@@ -281,10 +314,10 @@ public static class DataSeeder
                     code = emp.DefaultShift == "PM" ? "WP" : "WA";
 
                 // Sprinkle realistic variations
-                if (emp.Name == "TJ Martinez"  && d == 17) code = "PTO";
+                if (emp.Name == "TJ Martinez"  && d == 17) code = "O";
                 if (emp.Name == "TJ Martinez"  && d == 11 && dow == DayOfWeek.Saturday) code = "OC";
                 if (emp.Name == "Caleb Lucas"  && d == 7)  code = "CO";
-                if (emp.Name == "Caleb Lucas"  && d == 24) code = "PTO";
+                if (emp.Name == "Caleb Lucas"  && d == 24) code = "O";
                 if (emp.Name == "Robert Hall"  && d == 11 && dow == DayOfWeek.Saturday) code = "OC";
 
                 entries.Add(new ScheduleEntry

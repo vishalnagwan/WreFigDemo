@@ -8,7 +8,7 @@ namespace WreFigDemo.Services;
 
 public class UserService(
     UserManager<AppUser> userManager,
-    AppDbContext db,
+    IDbContextFactory<AppDbContext> dbFactory,
     IAuditService audit) : IUserService
 {
     public async Task<List<UserListVm>> GetUsersAsync()
@@ -32,6 +32,7 @@ public class UserService(
                 Role        = roles.FirstOrDefault() ?? string.Empty,
                 IsActive    = u.IsActive,
                 CreatedAt   = u.CreatedAt,
+                BranchIds   = u.UserBranches.Select(ub => ub.BranchId).ToList(),
                 BranchNames = u.UserBranches.Select(ub => ub.Branch?.Name ?? string.Empty).ToList()
             });
         }
@@ -57,6 +58,7 @@ public class UserService(
 
         await userManager.AddToRoleAsync(user, model.Role);
 
+        await using var db = await dbFactory.CreateDbContextAsync();
         foreach (var branchId in model.BranchIds)
             db.UserBranches.Add(new AppUserBranch { UserId = user.Id, BranchId = branchId });
 
@@ -71,6 +73,8 @@ public class UserService(
     public async Task<(bool Success, IEnumerable<string> Errors)> UpdateUserAsync(
         EditUserVm model, string actorId, string actorName)
     {
+        await using var db = await dbFactory.CreateDbContextAsync();
+
         var user = await userManager.Users
             .Include(u => u.UserBranches)
             .FirstOrDefaultAsync(u => u.Id == model.Id);
@@ -97,7 +101,8 @@ public class UserService(
             await userManager.AddToRoleAsync(user, model.Role);
         }
 
-        db.UserBranches.RemoveRange(user.UserBranches);
+        var existingLinks = await db.UserBranches.Where(ub => ub.UserId == user.Id).ToListAsync();
+        db.UserBranches.RemoveRange(existingLinks);
         foreach (var branchId in model.BranchIds)
             db.UserBranches.Add(new AppUserBranch { UserId = user.Id, BranchId = branchId });
 

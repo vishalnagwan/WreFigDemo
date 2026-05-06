@@ -15,13 +15,25 @@ public static class AppRoles
         Planner, Dispatcher, OtherEmployee
     ];
 
-    // Can see all branches (Planner Dashboard mode)
+    // Can see ALL branches — Central Dispatch / admin only
     public static readonly string[] GlobalViewRoles =
+        [PlannerDashboard];
+
+    // Scoped to their assigned branches only
+    public static readonly string[] BranchScopedRoles =
+        [FieldSupervisor, DispatchSupervisor, Planner, Dispatcher, OtherEmployee];
+
+    // Can write (paint) schedule status codes — writes to FIG per the access flow
+    public static readonly string[] WriteRoles =
         [PlannerDashboard, FieldSupervisor, DispatchSupervisor];
 
-    // Scoped to their assigned branches only (Field Office-Dashboard mode)
-    public static readonly string[] BranchScopedRoles =
-        [Planner, Dispatcher, OtherEmployee];
+    // Can add / edit supervisor notes — write roles + Planner (read & chase)
+    public static readonly string[] NoteRoles =
+        [PlannerDashboard, FieldSupervisor, DispatchSupervisor, Planner];
+
+    // Can view compliance report and change alerts
+    public static readonly string[] AlertComplianceRoles =
+        [PlannerDashboard, FieldSupervisor, DispatchSupervisor, Planner];
 
     public static bool IsGlobalRole(string role) =>
         GlobalViewRoles.Contains(role, StringComparer.OrdinalIgnoreCase);

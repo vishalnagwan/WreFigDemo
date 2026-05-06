@@ -1,9 +1,8 @@
-@* Shift status chip — maps status code to wireframe colors via StatusCodeService *@
 @inject IStatusCodeService StatusCodeSvc
 
-<div class="shift-chip @_cls @(JustPainted ? "just-painted" : "")"
+<div class="shift-chip @StatusCodeSvc.GetCssClass(Code) @(JustPainted ? "just-painted" : "")"
      title="@(HasNote ? "Has supervisor note" : null)">
-    @_label
+    @StatusCodeSvc.GetLabel(Code)
     @if (HasNote)
     {
         <span class="note-dot"></span>
@@ -14,21 +13,4 @@
     [Parameter] public string? Code        { get; set; }
     [Parameter] public bool    HasNote     { get; set; }
     [Parameter] public bool    JustPainted { get; set; }
-
-    private string _cls   = "empty";
-    private string _label = "—";
-
-    protected override async Task OnInitializedAsync()
-    {
-        await StatusCodeSvc.GetAllAsync(); // warm the cache once per circuit
-        UpdateDisplay();
-    }
-
-    protected override void OnParametersSet() => UpdateDisplay();
-
-    private void UpdateDisplay()
-    {
-        _cls   = StatusCodeSvc.GetCssClass(Code);
-        _label = StatusCodeSvc.GetLabel(Code);
-    }
 }

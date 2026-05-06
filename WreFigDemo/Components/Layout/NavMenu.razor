@@ -13,7 +13,7 @@
                         Home
                     </NavLink>
 
-                    <AuthorizeView Roles="@(AppRoles.PlannerDashboard + "," + AppRoles.FieldSupervisor + "," + AppRoles.DispatchSupervisor)">
+                    <AuthorizeView Roles="@string.Join(",", AppRoles.AlertComplianceRoles)">
                         <Authorized Context="_">
                             <NavLink href="/compliance" class="topbar-nav-link">
                                 Compliance

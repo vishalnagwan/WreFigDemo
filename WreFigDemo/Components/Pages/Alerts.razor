@@ -1,6 +1,8 @@
 @page "/alerts"
-@attribute [Authorize(Roles = "PlannerDashboard,FieldSupervisor,DispatchSupervisor")]
+@attribute [Authorize(Roles = "PlannerDashboard,FieldSupervisor,DispatchSupervisor,Planner")]
 @inject IAuditService AuditSvc
+@inject AlertReadStateService ReadState
+@inject AuthenticationStateProvider AuthState
 
 <PageTitle>WRE FIG — Change Alerts</PageTitle>
 
@@ -16,9 +18,9 @@
         </div>
     </div>
     <div class="alerts-filters">
-        <button class="filter-btn @(Filter == "all"    ? "active" : "")" @onclick='() => Filter = "all"'>All</button>
-        <button class="filter-btn @(Filter == "unread" ? "active" : "")" @onclick='() => Filter = "unread"'>Unread</button>
-        <button class="filter-btn @(Filter == "urgent" ? "active" : "")" @onclick='() => Filter = "urgent"'>Urgent only</button>
+        <button class="filter-btn @(Filter == "all"    ? "active" : "")" @onclick='() => SetFilter("all")'>All</button>
+        <button class="filter-btn @(Filter == "unread" ? "active" : "")" @onclick='() => SetFilter("unread")'>Unread</button>
+        <button class="filter-btn @(Filter == "urgent" ? "active" : "")" @onclick='() => SetFilter("urgent")'>Urgent only</button>
     </div>
 </div>
 
@@ -35,11 +37,15 @@ else if (!AlertItems.Any())
 else
 {
     <div class="sketch-card">
+        @{
+            var displayed = false;
+        }
         @foreach (var group in Groups)
         {
             var items = FilteredAlerts.Where(a => a.Urgency == group.Key).ToList();
             @if (items.Any())
             {
+                displayed = true;
                 <div class="alert-group-header">@group.Label</div>
                 @foreach (var a in items)
                 {
@@ -47,7 +53,7 @@ else
                 }
             }
         }
-        @if (!FilteredAlerts.Any())
+        @if (!displayed)
         {
             <p class="empty-state">No alerts match the current filter.</p>
         }
@@ -81,7 +87,21 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        AlertItems = await AuditSvc.GetRecentAlertsAsync(count: 100);
-        Loading = false;
+        var auth   = await AuthState.GetAuthenticationStateAsync();
+        var userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        var raw = await AuditSvc.GetRecentAlertsAsync(userId: userId, count: 100);
+
+        // Apply read/unread state from this session
+        foreach (var a in raw)
+            a.IsUnread = ReadState.IsUnread(a.Id);
+
+        AlertItems = raw;
+        Loading    = false;
+
+        // Mark all currently loaded alerts as read — next visit they show as read
+        ReadState.MarkAllRead(AlertItems.Select(a => a.Id));
     }
+
+    private void SetFilter(string f) => Filter = f;
 }

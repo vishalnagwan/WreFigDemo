@@ -8,6 +8,7 @@ public class UserListVm
     public string Role { get; set; } = string.Empty;
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
+    public List<int>    BranchIds   { get; set; } = [];
     public List<string> BranchNames { get; set; } = [];
 }
 

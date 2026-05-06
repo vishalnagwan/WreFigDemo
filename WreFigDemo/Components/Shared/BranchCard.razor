@@ -1,9 +1,13 @@
 @* Compact branch card for the Home page region-grouped grid *@
 
-<div class="branch-card @(Summary.IsAcquisition ? "acquisition" : "") @(IsPinned ? "pinned" : "")"
+<div class="branch-card @(Summary.IsAcquisition ? "acquisition" : "") @(IsPinned ? "pinned" : "") @(HasUnviewedNotes ? "note-alert" : "")"
      @onclick="OnClick">
     <div class="branch-card-name">
         <span>@Summary.BranchName</span>
+        @if (HasUnviewedNotes)
+        {
+            <span class="note-alert-dot" title="Unviewed notes this month"></span>
+        }
         <span class="branch-star @(IsPinned ? "active" : "")"
               @onclick:stopPropagation="true"
               @onclick="TogglePin"
@@ -26,10 +30,11 @@
 </div>
 
 @code {
-    [Parameter, EditorRequired] public BranchSummaryVm    Summary      { get; set; } = default!;
-    [Parameter]                 public bool               IsPinned     { get; set; }
-    [Parameter]                 public EventCallback      OnClick      { get; set; }
-    [Parameter]                 public EventCallback<int> OnTogglePin  { get; set; }
+    [Parameter, EditorRequired] public BranchSummaryVm    Summary          { get; set; } = default!;
+    [Parameter]                 public bool               IsPinned         { get; set; }
+    [Parameter]                 public bool               HasUnviewedNotes { get; set; }
+    [Parameter]                 public EventCallback      OnClick          { get; set; }
+    [Parameter]                 public EventCallback<int> OnTogglePin      { get; set; }
 
     private string StatusLabel => Summary.Status switch
     {
