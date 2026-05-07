@@ -3,11 +3,11 @@
 @inject IBranchService BranchSvc
 @inject AuthenticationStateProvider AuthState
 
-<PageTitle>WRE FIG — Branch Compliance</PageTitle>
+<PageTitle>WRE FIG — Field Office Compliance</PageTitle>
 
 <div class="page-header">
     <div>
-        <h1 class="page-title">Branch compliance</h1>
+        <h1 class="page-title">Field office compliance</h1>
         <div style="font-size:13px;color:var(--ink-faint);margin-top:2px">
             @(IsViewingCurrentMonth ? "This month" : IsViewingNextMonth ? "Next month" : MonthLabel) — FIG fill-rate report
         </div>
@@ -40,19 +40,19 @@ else if (Report is not null)
             <div class="kpi-value @(Report.AverageFillRate >= 80 ? "good" : "warn")">
                 @Report.AverageFillRate.ToString("0.0")%
             </div>
-            <div class="kpi-sub">across @Report.Branches.Count branches</div>
+            <div class="kpi-sub">across @Report.Branches.Count field offices</div>
         </div>
         <div class="kpi-card">
             <div class="kpi-label">Fully up-to-date</div>
             <div class="kpi-value good">@Report.UpToDateCount / @Report.Branches.Count</div>
-            <div class="kpi-sub">branches ≥ 85% filled</div>
+            <div class="kpi-sub">field offices ≥ 85% filled</div>
         </div>
         <div class="kpi-card">
             <div class="kpi-label">Needs attention</div>
             <div class="kpi-value @(Report.BelowThreshold > 0 ? "warn" : "good")">
                 @Report.BelowThreshold
             </div>
-            <div class="kpi-sub">branches below threshold</div>
+            <div class="kpi-sub">field offices below threshold</div>
         </div>
     </div>
 

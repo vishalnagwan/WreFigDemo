@@ -21,7 +21,7 @@ else if (Grid is not null)
     @* Header *@
     <div class="page-header">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <button class="btn btn-ghost btn-sm" @onclick='() => Nav.NavigateTo("/")'>&#8592; All branches</button>
+            <button class="btn btn-ghost btn-sm" @onclick='() => Nav.NavigateTo("/")'>&#8592; All field offices</button>
             <h1 class="page-title">@Summary?.BranchName</h1>
             @if (Summary is not null)
             {
@@ -77,7 +77,15 @@ else if (Grid is not null)
             <span class="paint-help">
                 @if (PaintMode is not null)
                 {
-                    <span>Click cells to assign status · Esc to exit</span>
+                    <span class="paint-status-inline">
+                        <span class="pulse"></span>
+                        <strong>@(PaintMode == "clear" ? "Clear" : StatusCodeSvc.GetLabel(PaintMode))</strong> loaded
+                        @if (SelectedRows.Count > 1)
+                        {
+                            <span> · <strong>@SelectedRows.Count rows selected</strong></span>
+                        }
+                        <span class="paint-help-sub"> · click cells to apply · Esc to exit</span>
+                    </span>
                 }
                 else
                 {
@@ -85,20 +93,6 @@ else if (Grid is not null)
                 }
             </span>
         </div>
-
-        @if (PaintMode is not null)
-        {
-            <div class="paint-status">
-                <span class="pulse"></span>
-                <span>
-                    <strong>@(PaintMode == "clear" ? "Clear" : StatusCodeSvc.GetLabel(PaintMode))</strong> loaded
-                    @if (SelectedRows.Count > 1)
-                    {
-                        <span> · <strong>@SelectedRows.Count rows selected</strong> — click any day to paint across all</span>
-                    }
-                </span>
-            </div>
-        }
     }
 
     @* Grid *@
@@ -128,7 +122,7 @@ else if (Grid is not null)
                 {
                     <tr>
                         <td colspan="@(33 + (CanEdit ? 1 : 0))" class="empty-state">
-                            No employees configured for this branch yet.
+                            No employees configured for this field office yet.
                         </td>
                     </tr>
                 }

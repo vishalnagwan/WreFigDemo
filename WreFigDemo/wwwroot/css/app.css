@@ -85,6 +85,13 @@ a:hover { text-decoration: underline; }
   padding: 0 24px;
 }
 
+.topbar-logo-img {
+  height: 32px;
+  width: auto;
+  display: block;
+  flex-shrink: 0;
+}
+
 .topbar-logo {
   font-size: 18px;
   font-weight: 700;
@@ -136,7 +143,7 @@ a:hover { text-decoration: underline; }
 
 /* ─── App Shell ─────────────────────────────────────────────────────────── */
 .app-shell { display: flex; flex-direction: column; min-height: 100vh; }
-.main-content { flex: 1; padding: 20px 24px; overflow-x: auto; max-width: 1400px; margin: 0 auto; width: 100%; }
+.main-content { flex: 1; padding: 20px 24px; overflow-x: auto; max-width: 1600px; margin: 0 auto; width: 100%; }
 
 /* ─── Buttons ───────────────────────────────────────────────────────────── */
 .btn {
@@ -266,6 +273,10 @@ a:hover { text-decoration: underline; }
   background: var(--note-dot); margin-left: 4px; flex-shrink: 0;
 }
 
+.shift-chip .note-bell-chip {
+  font-size: 9px; margin-left: 3px; flex-shrink: 0; line-height: 1;
+}
+
 /* Paint mode */
 .shift-chip.just-painted {
   animation: paintFlash 0.6s ease;
@@ -329,6 +340,17 @@ body.paint-active .shift-chip { cursor: crosshair; }
   background: var(--accent); flex-shrink: 0;
   animation: pulse 1.2s ease-in-out infinite;
 }
+
+.paint-status-inline {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: #3730a3; font-style: normal;
+}
+.paint-status-inline .pulse {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent); flex-shrink: 0;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.paint-help-sub { color: var(--ink-faint); font-style: italic; }
 @keyframes pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50%       { opacity: 0.6; transform: scale(0.85); }
@@ -361,7 +383,7 @@ tr.row-selected td { background: inherit; }
 .grid-wrapper { overflow-x: auto; }
 
 .schedule-scroll-wrap {
-  overflow-x: auto;
+  overflow-x: hidden;
   border: 1.5px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
@@ -383,7 +405,7 @@ tr.row-selected td { background: inherit; }
 }
 .schedule-table .emp-col { text-align: left; padding-left: 12px; min-width: 130px; }
 .schedule-table .shift-col { min-width: 60px; }
-.schedule-table .day-col  { width: 46px; min-width: 46px; font-family: 'DM Mono', monospace; font-size: 11px; }
+.schedule-table .day-col  { width: 34px; min-width: 34px; font-family: 'DM Mono', monospace; font-size: 10px; }
 .schedule-table .day-col.weekend { background: rgba(0,0,0,0.025); }
 .schedule-table tbody tr:hover { background: #fafaf9; }
 
@@ -646,19 +668,31 @@ tr.row-selected td { background: inherit; }
   flex-shrink: 0;
 }
 
+.panel-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.panel-edit-btn { font-size: 12px; }
+
 .panel-close {
-  position: absolute; top: 14px; right: 14px;
   width: 28px; height: 28px; border-radius: 50%;
   border: 1px solid #d1d5db; background: #fff;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; font-size: 16px; color: #9ca3af;
   line-height: 1; transition: background 0.12s, color 0.12s;
+  flex-shrink: 0;
 }
 .panel-close:hover { background: #fee2e2; color: #b91c1c; border-color: #fca5a5; }
 
+.shift-picker-row {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-bottom: 12px;
+}
+
 .panel-driver-row {
   display: flex; align-items: center; gap: 12px;
-  margin-bottom: 10px; padding-right: 32px;
+  margin-bottom: 10px;
 }
 .driver-avatar {
   width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0;
@@ -809,7 +843,26 @@ td.day-col.note-alert .shift-chip {
   animation: card-note-pulse 1.4s ease-in-out infinite;
 }
 
-/* Amber dot shown next to branch name */
+/* Bell icon shown next to branch name for unviewed notes */
+.note-bell {
+  font-size: 13px;
+  margin-left: 3px; margin-right: 2px;
+  flex-shrink: 0; vertical-align: middle;
+  color: #d97706;
+  animation: bell-shake 1.4s ease-in-out infinite;
+  display: inline-block;
+  transform-origin: top center;
+}
+@keyframes bell-shake {
+  0%, 100% { transform: rotate(0deg); }
+  15%       { transform: rotate(10deg); }
+  30%       { transform: rotate(-10deg); }
+  45%       { transform: rotate(5deg); }
+  60%       { transform: rotate(-5deg); }
+  75%       { transform: rotate(0deg); }
+}
+
+/* Legacy dot — kept for reference */
 .note-alert-dot {
   display: inline-block;
   width: 7px; height: 7px; border-radius: 50%;

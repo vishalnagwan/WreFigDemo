@@ -47,7 +47,7 @@ public static class DataSeeder
             new() { Code = "OC", Label = "OC", CssClass = "oc",    Description = "On-Call (24h or per branch convention)",      SortOrder = 5, ShowInPaintBar = true,  ShowInPicker = true  },
             new() { Code = "TR", Label = "TR", CssClass = "tr",    Description = "Training — driver in training",               SortOrder = 6, ShowInPaintBar = true,  ShowInPicker = true  },
             new() { Code = "HD", Label = "HD", CssClass = "hd",    Description = "Holiday (used sparingly)",                    SortOrder = 7, ShowInPaintBar = true,  ShowInPicker = true  },
-            new() { Code = "WX", Label = "WX", CssClass = "wx",    Description = "Weather event or branch closure",             SortOrder = 8, ShowInPaintBar = false, ShowInPicker = true  },
+            new() { Code = "WX", Label = "WX", CssClass = "wx",    Description = "Weather event or branch closure",             SortOrder = 8, ShowInPaintBar = true,  ShowInPicker = true  },
             new() { Code = "—",  Label = "—",  CssClass = "empty", Description = "Default / no entry",                         SortOrder = 9, ShowInPaintBar = false, ShowInPicker = true  },
         };
 

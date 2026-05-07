@@ -6,7 +6,7 @@
         <span>@Summary.BranchName</span>
         @if (HasUnviewedNotes)
         {
-            <span class="note-alert-dot" title="Unviewed notes this month"></span>
+            <span class="note-bell" title="Unviewed notes this month">&#128276;</span>
         }
         <span class="branch-star @(IsPinned ? "active" : "")"
               @onclick:stopPropagation="true"
