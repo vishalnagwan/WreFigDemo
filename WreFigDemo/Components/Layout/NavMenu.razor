@@ -12,13 +12,26 @@
                         Home
                     </NavLink>
 
-                    <AuthorizeView Roles="@string.Join(",", AppRoles.AlertComplianceRoles)">
+                    <AuthorizeView Roles="@string.Join(",", AppRoles.ComplianceRoles)">
                         <Authorized Context="_">
                             <NavLink href="/compliance" class="topbar-nav-link">
                                 Compliance
                             </NavLink>
+                        </Authorized>
+                    </AuthorizeView>
+
+                    <AuthorizeView Roles="@string.Join(",", AppRoles.AlertRoles)">
+                        <Authorized Context="_">
                             <NavLink href="/alerts" class="topbar-nav-link">
                                 Alerts
+                            </NavLink>
+                        </Authorized>
+                    </AuthorizeView>
+
+                    <AuthorizeView Roles="@string.Join(",", AppRoles.RolloverRoles)">
+                        <Authorized Context="_">
+                            <NavLink href="/rollover" class="topbar-nav-link">
+                                Rollover
                             </NavLink>
                         </Authorized>
                     </AuthorizeView>

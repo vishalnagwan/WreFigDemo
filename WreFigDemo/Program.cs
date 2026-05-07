@@ -54,6 +54,7 @@ builder.Services.AddScoped<IUserService,UserService>();
 builder.Services.AddScoped<IEmailNotificationService,EmailNotificationService>();
 builder.Services.AddScoped<NoteViewStateService>();
 builder.Services.AddScoped<AlertReadStateService>();
+builder.Services.AddScoped<IMonthStateService, MonthStateService>();
 builder.Services.AddHostedService<ComplianceNotificationJob>();
 
 builder.Services.AddCascadingAuthenticationState();

@@ -1,5 +1,5 @@
 @page "/alerts"
-@attribute [Authorize(Roles = "PlannerDashboard,FieldSupervisor,DispatchSupervisor,Planner")]
+@attribute [Authorize(Roles = "PlannerDashboard,FieldSupervisor,DispatchSupervisor,Planner,Dispatcher")]
 @inject IAuditService AuditSvc
 @inject AlertReadStateService ReadState
 @inject AuthenticationStateProvider AuthState

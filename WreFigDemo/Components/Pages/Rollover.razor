@@ -1,0 +1,200 @@
+@page "/rollover"
+@attribute [Authorize(Roles = "PlannerDashboard,DispatchSupervisor")]
+@inject IMonthStateService MonthStateSvc
+@inject AuthenticationStateProvider AuthState
+
+<PageTitle>WRE FIG — Month Rollover</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Month rollover console</h1>
+        <div style="font-size:13px;color:var(--ink-faint);margin-top:2px">
+            Open the next month · close the prior month · visible to Dispatch Supervisor and Admin only
+        </div>
+    </div>
+</div>
+
+@if (Loading)
+{
+    <div class="loading">Loading…</div>
+}
+else
+{
+    @* Quick-action cards *@
+    <div class="kpi-row" style="margin-bottom:20px">
+        <div class="kpi-card">
+            <div class="kpi-label">Open months</div>
+            <div class="kpi-value good">@Locks.Count(m => m.IsOpen)</div>
+            <div class="kpi-sub">visible in planning grid</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Closed months</div>
+            <div class="kpi-value" style="color:var(--ink-light)">@Locks.Count(m => !m.IsOpen)</div>
+            <div class="kpi-sub">hidden from grid</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Current month</div>
+            <div class="kpi-value" style="font-size:18px">@CurrentMonthLabel</div>
+            <div class="kpi-sub">
+                @(CurrentLock?.IsOpen == true ? "✓ Open" : "⚠ Closed")
+            </div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(StatusMessage))
+    {
+        <div class="callout" style="margin-bottom:14px;background:#d4edda;border-color:#4caf50;color:#1e4620">
+            @StatusMessage
+        </div>
+    }
+
+    @* Month table *@
+    <div class="sketch-card">
+        <table class="branch-table">
+            <thead>
+                <tr>
+                    <th>Month</th>
+                    <th>Status</th>
+                    <th>Last changed by</th>
+                    <th>Last changed at</th>
+                    <th style="width:180px">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var m in Locks)
+                {
+                    var label = new DateTime(m.Year, m.Month, 1).ToString("MMMM yyyy");
+                    var isNow = m.Year == DateTime.Now.Year && m.Month == DateTime.Now.Month;
+                    <tr>
+                        <td style="font-weight:700;font-size:15px">
+                            @label
+                            @if (isNow)
+                            {
+                                <span class="status-pill green" style="font-size:10px;margin-left:8px">Current</span>
+                            }
+                        </td>
+                        <td>
+                            @if (m.IsOpen)
+                            {
+                                <span class="status-pill green">Open</span>
+                            }
+                            else
+                            {
+                                <span class="status-pill amber">Closed</span>
+                            }
+                        </td>
+                        <td><span style="font-size:13px">@(string.IsNullOrEmpty(m.ModifiedBy) ? "—" : m.ModifiedBy)</span></td>
+                        <td><span class="timestamp">@m.ModifiedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")</span></td>
+                        <td>
+                            @if (m.IsOpen)
+                            {
+                                <button class="btn btn-sm" @onclick="() => CloseMonth(m.Year, m.Month)"
+                                        disabled="@Busy">
+                                    Close month
+                                </button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-sm btn-primary" @onclick="() => OpenMonth(m.Year, m.Month)"
+                                        disabled="@Busy">
+                                    Re-open month
+                                </button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @* Open next month shortcut *@
+    <div style="margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-primary" @onclick="OpenNextMonth" disabled="@(Busy || NextMonthAlreadyOpen)">
+            &#43; Open @NextMonthLabel
+        </button>
+        @if (NextMonthAlreadyOpen)
+        {
+            <span style="font-size:13px;color:var(--ink-faint)">@NextMonthLabel is already open.</span>
+        }
+
+        <button class="btn" @onclick="ClosePriorMonth" disabled="@(Busy || !PriorMonthIsOpen)"
+                style="margin-left:8px">
+            Close @PriorMonthLabel
+        </button>
+        @if (!PriorMonthIsOpen)
+        {
+            <span style="font-size:13px;color:var(--ink-faint)">@PriorMonthLabel is already closed.</span>
+        }
+    </div>
+
+    <div class="callout" style="margin-top:16px">
+        Opening a month makes its schedule grid visible to all users. Closing hides it.
+        Correna's ritual: open next month around the 3rd week, close prior month at month-end.
+    </div>
+}
+
+@code {
+    private List<WreFigDemo.Models.Entities.MonthLock> Locks = [];
+    private bool   Loading       = true;
+    private bool   Busy          = false;
+    private string StatusMessage = string.Empty;
+    private string UserName      = string.Empty;
+
+    private string CurrentMonthLabel => new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).ToString("MMMM yyyy");
+
+    private static (int Y, int M) NextMonth =>
+        DateTime.Now.Month == 12 ? (DateTime.Now.Year + 1, 1) : (DateTime.Now.Year, DateTime.Now.Month + 1);
+
+    private static (int Y, int M) PriorMonth =>
+        DateTime.Now.Month == 1 ? (DateTime.Now.Year - 1, 12) : (DateTime.Now.Year, DateTime.Now.Month - 1);
+
+    private string NextMonthLabel  => new DateTime(NextMonth.Y,  NextMonth.M,  1).ToString("MMMM yyyy");
+    private string PriorMonthLabel => new DateTime(PriorMonth.Y, PriorMonth.M, 1).ToString("MMMM yyyy");
+
+    private WreFigDemo.Models.Entities.MonthLock? CurrentLock =>
+        Locks.FirstOrDefault(m => m.Year == DateTime.Now.Year && m.Month == DateTime.Now.Month);
+
+    private bool NextMonthAlreadyOpen =>
+        Locks.Any(m => m.Year == NextMonth.Y && m.Month == NextMonth.M && m.IsOpen);
+
+    private bool PriorMonthIsOpen =>
+        Locks.Any(m => m.Year == PriorMonth.Y && m.Month == PriorMonth.M && m.IsOpen);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        UserName = auth.User.FindFirst("fullname")?.Value
+            ?? auth.User.Identity?.Name
+            ?? "unknown";
+
+        await MonthStateSvc.EnsureDefaultsAsync(UserName);
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        Locks   = await MonthStateSvc.GetAllAsync();
+        Loading = false;
+    }
+
+    private async Task OpenMonth(int year, int month)
+    {
+        Busy = true;
+        await MonthStateSvc.OpenMonthAsync(year, month, UserName);
+        await LoadAsync();
+        StatusMessage = $"{new DateTime(year, month, 1):MMMM yyyy} opened.";
+        Busy = false;
+    }
+
+    private async Task CloseMonth(int year, int month)
+    {
+        Busy = true;
+        await MonthStateSvc.CloseMonthAsync(year, month, UserName);
+        await LoadAsync();
+        StatusMessage = $"{new DateTime(year, month, 1):MMMM yyyy} closed.";
+        Busy = false;
+    }
+
+    private Task OpenNextMonth()  => OpenMonth(NextMonth.Y, NextMonth.M);
+    private Task ClosePriorMonth() => CloseMonth(PriorMonth.Y, PriorMonth.M);
+}

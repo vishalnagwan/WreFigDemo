@@ -23,17 +23,29 @@ public static class AppRoles
     public static readonly string[] BranchScopedRoles =
         [FieldSupervisor, DispatchSupervisor, Planner, Dispatcher, OtherEmployee];
 
-    // Can write (paint) schedule status codes — writes to FIG per the access flow
+    // Can write (paint) schedule status codes — PPT: Planner has cross-branch R/W
     public static readonly string[] WriteRoles =
-        [PlannerDashboard, FieldSupervisor, DispatchSupervisor];
+        [PlannerDashboard, FieldSupervisor, DispatchSupervisor, Planner];
 
-    // Can add / edit supervisor notes — write roles + Planner (read & chase)
+    // Can add / edit supervisor notes — write roles + Dispatcher (note on real-time changes)
     public static readonly string[] NoteRoles =
         [PlannerDashboard, FieldSupervisor, DispatchSupervisor, Planner];
 
-    // Can view compliance report and change alerts
+    // Can view compliance (fill-rate) report — excludes Dispatcher and OtherEmployee
+    public static readonly string[] ComplianceRoles =
+        [PlannerDashboard, FieldSupervisor, DispatchSupervisor, Planner];
+
+    // Can view change-alerts inbox — PPT: Dispatcher sees "24-hour alerts feed front-and-center"
+    public static readonly string[] AlertRoles =
+        [PlannerDashboard, FieldSupervisor, DispatchSupervisor, Planner, Dispatcher];
+
+    // Legacy alias — kept so any existing references still compile
     public static readonly string[] AlertComplianceRoles =
         [PlannerDashboard, FieldSupervisor, DispatchSupervisor, Planner];
+
+    // Can access the month rollover console — PPT: Dispatch Supervisor owns this ritual; Admin can too
+    public static readonly string[] RolloverRoles =
+        [PlannerDashboard, DispatchSupervisor];
 
     public static bool IsGlobalRole(string role) =>
         GlobalViewRoles.Contains(role, StringComparer.OrdinalIgnoreCase);

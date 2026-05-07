@@ -16,7 +16,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<AppUserBranch>       UserBranches      => Set<AppUserBranch>();
     public DbSet<AppUserResourceType> UserResourceTypes => Set<AppUserResourceType>();
-    public DbSet<ScheduleStatusCode> StatusCodes => Set<ScheduleStatusCode>();
+    public DbSet<ScheduleStatusCode> StatusCodes  => Set<ScheduleStatusCode>();
+    public DbSet<MonthLock>          MonthLocks   => Set<MonthLock>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -66,5 +67,9 @@ public class AppDbContext : IdentityDbContext<AppUser>
 
         builder.Entity<ScheduleStatusCode>()
             .HasKey(s => s.Code);
+
+        builder.Entity<MonthLock>()
+            .HasIndex(m => new { m.Year, m.Month })
+            .IsUnique();
     }
 }
