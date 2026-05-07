@@ -54,7 +54,7 @@
   --gray-low:   #9ca3af;
 
   /* Layout */
-  --topbar-h:  56px;
+  --topbar-h:  64px;
   --radius:    4px;
   --shadow:    0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.05);
 }
@@ -76,6 +76,7 @@ a:hover { text-decoration: underline; }
   top: 0;
   z-index: 100;
   height: var(--topbar-h);
+  overflow: visible;
   background: var(--paper);
   border-bottom: 1px solid var(--border);
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);
@@ -86,10 +87,11 @@ a:hover { text-decoration: underline; }
 }
 
 .topbar-logo-img {
-  height: 32px;
+  height: 52px;
   width: auto;
   display: block;
   flex-shrink: 0;
+  object-fit: contain;
 }
 
 .topbar-logo {
@@ -390,24 +392,33 @@ tr.row-selected td { background: inherit; }
   background: var(--paper);
 }
 .schedule-table {
-  width: 100%; border-collapse: collapse;
-  font-size: 13px;
+  width: 100%; border-collapse: collapse; table-layout: fixed;
+  font-size: 12px;
 }
 .schedule-table th, .schedule-table td {
-  padding: 6px 4px; text-align: center;
+  padding: 5px 2px; text-align: center;
   border-bottom: 1px solid var(--border-light);
+  overflow: hidden;
 }
 .schedule-table th {
-  background: var(--paper-warm); font-size: 11px; font-weight: 700;
-  color: var(--ink-light); text-transform: uppercase; letter-spacing: 0.04em;
+  background: var(--paper-warm); font-size: 10px; font-weight: 700;
+  color: var(--ink-light); text-transform: uppercase; letter-spacing: 0.02em;
   border-bottom: 1.5px solid var(--border);
-  white-space: nowrap;
+  white-space: nowrap; overflow: hidden;
 }
-.schedule-table .emp-col { text-align: left; padding-left: 12px; min-width: 130px; }
-.schedule-table .shift-col { min-width: 60px; }
-.schedule-table .day-col  { width: 34px; min-width: 34px; font-family: 'DM Mono', monospace; font-size: 10px; }
+/* Fixed columns — take only what they need */
+.schedule-table .emp-col  { width: 115px; text-align: left; padding-left: 10px; }
+.schedule-table .shift-col { width: 48px; }
+.schedule-table .row-check-col { width: 28px; }
+/* Day cols — no fixed width: table-layout:fixed distributes remainder evenly */
+.schedule-table .day-col  { font-family: 'DM Mono', monospace; font-size: 10px; }
 .schedule-table .day-col.weekend { background: rgba(0,0,0,0.025); }
 .schedule-table tbody tr:hover { background: #fafaf9; }
+/* Shift chip fills the day cell */
+.schedule-table td.day-col .shift-chip {
+  width: 100%; min-width: 0; padding: 0 1px; box-sizing: border-box;
+  font-size: 10px; height: 22px;
+}
 
 .schedule-table td.day-col { cursor: pointer; }
 .schedule-table td.day-col:hover { background: var(--accent-light); }
@@ -423,10 +434,10 @@ tr.row-selected td { background: inherit; }
 /* ─── Branch home (region grouped) ─────────────────────────────────────── */
 .branch-home-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 16px 0 12px;
+  padding: 10px 0 8px;
   border-bottom: 1.5px solid var(--border);
-  margin-bottom: 16px;
-  flex-wrap: wrap; gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap; gap: 8px;
 }
 .branch-home-title    { font-size: 20px; font-weight: 700; color: var(--ink); }
 .branch-home-subtitle { font-size: 13px; color: var(--ink-faint); margin-top: 2px; }
@@ -453,7 +464,7 @@ tr.row-selected td { background: inherit; }
 .refresh-btn:active { transform: rotate(180deg); }
 
 .region-section {
-  margin-bottom: 20px;
+  margin-bottom: 10px;
   border: 1.5px solid var(--border); border-radius: var(--radius);
   background: var(--paper);
   overflow: hidden;
@@ -462,7 +473,7 @@ tr.row-selected td { background: inherit; }
 
 .region-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 16px;
+  padding: 7px 12px;
   background: var(--paper-warm);
   border-bottom: 1.5px solid var(--border);
 }
@@ -472,13 +483,13 @@ tr.row-selected td { background: inherit; }
 
 .branch-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 12px;
-  padding: 0;
+  grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+  gap: 8px;
+  padding: 10px 12px;
 }
 
 .branch-card {
-  padding: 14px 16px; cursor: pointer;
+  padding: 10px 12px; cursor: pointer;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--paper);
@@ -489,9 +500,9 @@ tr.row-selected td { background: inherit; }
 .branch-card:hover { background: var(--paper-warm); box-shadow: 0 2px 8px rgba(0,0,0,0.10); }
 .branch-card-name {
   display: flex; align-items: center; justify-content: space-between;
-  font-size: 14px; font-weight: 600; color: var(--ink); margin-bottom: 3px;
+  font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 2px;
 }
-.branch-meta { font-size: 12px; color: var(--ink-faint); margin-bottom: 8px; }
+.branch-meta { font-size: 11px; color: var(--ink-faint); margin-bottom: 6px; }
 
 .branch-star { color: var(--border); font-size: 14px; cursor: pointer; transition: color 0.15s; }
 .branch-star:hover { color: #f59e0b; }
@@ -668,31 +679,19 @@ tr.row-selected td { background: inherit; }
   flex-shrink: 0;
 }
 
-.panel-topbar {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.panel-edit-btn { font-size: 12px; }
-
 .panel-close {
+  position: absolute; top: 14px; right: 14px;
   width: 28px; height: 28px; border-radius: 50%;
   border: 1px solid #d1d5db; background: #fff;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; font-size: 16px; color: #9ca3af;
   line-height: 1; transition: background 0.12s, color 0.12s;
-  flex-shrink: 0;
 }
 .panel-close:hover { background: #fee2e2; color: #b91c1c; border-color: #fca5a5; }
 
-.shift-picker-row {
-  display: flex; flex-wrap: wrap; gap: 6px;
-  margin-bottom: 12px;
-}
-
 .panel-driver-row {
   display: flex; align-items: center; gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 10px; padding-right: 36px;
 }
 .driver-avatar {
   width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0;
@@ -774,6 +773,13 @@ tr.row-selected td { background: inherit; }
 .supervisor-note-box textarea:focus {
   border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
 }
+.note-box-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px;
+}
+.note-box-header label { margin-bottom: 0 !important; }
+.note-actions-inline { display: flex; gap: 6px; }
+
 .note-actions { display: flex; gap: 8px; margin-top: 8px; }
 .note-edit-btn { margin-top: 8px; }
 

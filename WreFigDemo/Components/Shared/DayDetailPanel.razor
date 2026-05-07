@@ -1,7 +1,6 @@
 @using WreFigDemo.Models.Entities
 @inject IScheduleService ScheduleSvc
 @inject IAuditService AuditSvc
-@inject IStatusCodeService StatusCodeSvc
 @inject NoteViewStateService NoteViewState
 @inject IJSRuntime JS
 @implements IAsyncDisposable
@@ -10,28 +9,7 @@
 
     @* ── Header ── *@
     <div class="panel-top">
-        <div class="panel-topbar">
-            @if (CanEdit)
-            {
-                <button class="btn btn-ghost btn-sm panel-edit-btn" @onclick="() => EditingShift = !EditingShift">
-                    Edit shift
-                </button>
-            }
-            <button class="panel-close" @onclick="OnClose">&#215;</button>
-        </div>
-
-        @if (EditingShift && CanEdit)
-        {
-            <div class="shift-picker-row">
-                @foreach (var sc in ShiftCodes)
-                {
-                    <span class="paint-chip @sc.CssClass @(Cell?.StatusCode == sc.Code ? "active" : "")"
-                          @onclick="() => ApplyShift(sc.Code)">
-                        @sc.Label
-                    </span>
-                }
-            </div>
-        }
+        <button class="panel-close" @onclick="OnClose">&#215;</button>
 
         <div class="panel-driver-row">
             <div class="driver-avatar">@Initials</div>
@@ -91,12 +69,14 @@
             @if (EditingNote)
             {
                 <div class="supervisor-note-box">
-                    <label>Supervisor note</label>
-                    <textarea @bind="NoteText" rows="3" placeholder="Add a note…"></textarea>
-                    <div class="note-actions">
-                        <button class="btn btn-primary btn-sm" @onclick="SaveNote">Save note</button>
-                        <button class="btn btn-ghost btn-sm" @onclick="() => EditingNote = false">Cancel</button>
+                    <div class="note-box-header">
+                        <label>Supervisor note</label>
+                        <div class="note-actions-inline">
+                            <button class="btn btn-ghost btn-sm" @onclick="() => EditingNote = false">Cancel</button>
+                            <button class="btn btn-primary btn-sm" @onclick="SaveNote">Save</button>
+                        </div>
                     </div>
+                    <textarea @bind="NoteText" rows="3" placeholder="Add a note…"></textarea>
                 </div>
             }
             else if (!string.IsNullOrWhiteSpace(NoteText))
@@ -171,10 +151,8 @@
 
     private string? NoteText;
     private bool    EditingNote    = false;
-    private bool    EditingShift   = false;
     private bool    LoadingHistory = true;
-    private List<HistoryItemVm>          History    = [];
-    private List<ScheduleStatusCode>     ShiftCodes = [];
+    private List<HistoryItemVm> History = [];
     private int _loadedEmployeeId;
     private int _loadedDay;
 
@@ -207,22 +185,10 @@
 
         var date = new DateOnly(Year, Month, Day);
         NoteText = await ScheduleSvc.GetNoteAsync(Row.EmployeeId, date);
-        ShiftCodes = (await StatusCodeSvc.GetAllAsync()).Where(s => s.ShowInPicker && s.Code != "—").ToList();
 
-        EditingShift   = false;
         LoadingHistory = true;
         History = await AuditSvc.GetEmployeeHistoryAsync(Row.EmployeeId, date);
         LoadingHistory = false;
-    }
-
-    private async Task ApplyShift(string code)
-    {
-        if (UserId is null || Cell is null) return;
-        Cell.StatusCode = code;
-        EditingShift    = false;
-        var date = new DateOnly(Year, Month, Day);
-        await ScheduleSvc.UpsertCellAsync(Row.EmployeeId, date, code, UserId, UserName!);
-        History = await AuditSvc.GetEmployeeHistoryAsync(Row.EmployeeId, date);
     }
 
     private async Task SaveNote()
