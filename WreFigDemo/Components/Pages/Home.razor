@@ -155,7 +155,9 @@ else
     {
         var auth = await AuthState.GetAuthenticationStateAsync();
         UserId    = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        UserName  = auth.User.Identity?.Name ?? "User";
+        UserName  = auth.User.FindFirst("fullname")?.Value
+                 ?? auth.User.Identity?.Name
+                 ?? "User";
         UserEmail = auth.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
                  ?? auth.User.FindFirst("email")?.Value
                  ?? auth.User.Identity?.Name;

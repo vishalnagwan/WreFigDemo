@@ -176,7 +176,9 @@ else
     {
         var auth  = await AuthState.GetAuthenticationStateAsync();
         ActorId   = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
-        ActorName = auth.User.Identity?.Name ?? string.Empty;
+        ActorName = auth.User.FindFirst("fullname")?.Value
+                 ?? auth.User.Identity?.Name
+                 ?? string.Empty;
         AllBranches = await BranchSvc.GetBranchListAsync();
         await LoadAsync();
     }

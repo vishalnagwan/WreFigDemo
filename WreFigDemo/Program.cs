@@ -26,7 +26,8 @@ builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
         options.SignIn.RequireConfirmedAccount    = false;
     })
     .AddEntityFrameworkStores<AppDbContext>()
-    .AddDefaultTokenProviders();
+    .AddDefaultTokenProviders()
+    .AddClaimsPrincipalFactory<AppUserClaimsPrincipalFactory>();
 
 builder.Services.ConfigureApplicationCookie(options =>
 {

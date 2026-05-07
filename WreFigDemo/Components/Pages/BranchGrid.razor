@@ -231,7 +231,9 @@ else if (Grid is not null)
     {
         var auth = await AuthState.GetAuthenticationStateAsync();
         UserId   = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        UserName = auth.User.Identity?.Name ?? string.Empty;
+        UserName = auth.User.FindFirst("fullname")?.Value
+                ?? auth.User.Identity?.Name
+                ?? string.Empty;
         // WriteRoles: PlannerDashboard, FieldSupervisor, DispatchSupervisor
         CanEdit  = AppRoles.WriteRoles.Any(r => auth.User.IsInRole(r));
         // NoteRoles: WriteRoles + Planner (read & chase)
