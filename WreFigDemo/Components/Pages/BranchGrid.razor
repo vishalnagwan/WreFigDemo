@@ -74,24 +74,22 @@ else if (Grid is not null)
             }
             <span class="paint-chip clear @(PaintMode == "clear" ? "active" : "")"
                   @onclick='() => TogglePaint("clear")'>Clear</span>
-            <span class="paint-help">
-                @if (PaintMode is not null)
-                {
-                    <span class="paint-status-inline">
-                        <span class="pulse"></span>
-                        <strong>@(PaintMode == "clear" ? "Clear" : StatusCodeSvc.GetLabel(PaintMode))</strong> loaded
-                        @if (SelectedRows.Count > 1)
-                        {
-                            <span> · <strong>@SelectedRows.Count rows selected</strong></span>
-                        }
-                        <span class="paint-help-sub"> · click cells to apply · Esc to exit</span>
-                    </span>
-                }
-                else
-                {
-                    <span>Click a status to start assignment · select rows for bulk assignment</span>
-                }
-            </span>
+            @if (PaintMode is not null)
+            {
+                <span class="paint-loaded-center">
+                    <span class="pulse"></span>
+                    <strong>@(PaintMode == "clear" ? "Clear" : StatusCodeSvc.GetLabel(PaintMode))</strong> loaded
+                    @if (SelectedRows.Count > 1)
+                    {
+                        <span> · <strong>@SelectedRows.Count rows selected</strong></span>
+                    }
+                </span>
+                <span class="paint-help-right">Click cells to apply · Esc to exit</span>
+            }
+            else
+            {
+                <span class="paint-help-right">Click a status to start assignment · select rows for bulk assignment</span>
+            }
         </div>
     }
 
