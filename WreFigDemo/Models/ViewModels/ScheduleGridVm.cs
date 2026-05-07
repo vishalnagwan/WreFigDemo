@@ -18,12 +18,13 @@ public class DayHeader
 
 public class EmployeeScheduleRow
 {
-    public int    EmployeeId      { get; set; }
-    public string EmployeeName    { get; set; } = string.Empty;
-    public string DefaultShift    { get; set; } = "AM";
-    public string? TruckAssignment { get; set; }
-    public string? TruckId         { get; set; }
-    public string? ManagerName     { get; set; }
+    public int    EmployeeId        { get; set; }
+    public string EmployeeName      { get; set; } = string.Empty;
+    public string DefaultShift      { get; set; } = "AM";
+    public string? TruckAssignment  { get; set; }
+    public string? TruckId          { get; set; }
+    public string? ManagerName      { get; set; }
+    public List<string> ResourceTypes { get; set; } = [];
     /// <summary>Key = day of month (1..31)</summary>
     public Dictionary<int, DayCell> Cells { get; set; } = [];
 }

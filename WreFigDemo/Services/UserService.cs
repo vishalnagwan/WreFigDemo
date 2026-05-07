@@ -17,6 +17,7 @@ public class UserService(
             .AsNoTracking()
             .Include(u => u.UserBranches)
             .ThenInclude(ub => ub.Branch)
+            .Include(u => u.UserResourceTypes)
             .ToListAsync();
 
         var result = new List<UserListVm>();
@@ -32,8 +33,9 @@ public class UserService(
                 Role        = roles.FirstOrDefault() ?? string.Empty,
                 IsActive    = u.IsActive,
                 CreatedAt   = u.CreatedAt,
-                BranchIds   = u.UserBranches.Select(ub => ub.BranchId).ToList(),
-                BranchNames = u.UserBranches.Select(ub => ub.Branch?.Name ?? string.Empty).ToList()
+                BranchIds         = u.UserBranches.Select(ub => ub.BranchId).ToList(),
+                BranchNames       = u.UserBranches.Select(ub => ub.Branch?.Name ?? string.Empty).ToList(),
+                ResourceTypeNames = u.UserResourceTypes.Select(ur => ur.ResourceTypeName).ToList()
             });
         }
 
@@ -62,6 +64,9 @@ public class UserService(
         foreach (var branchId in model.BranchIds)
             db.UserBranches.Add(new AppUserBranch { UserId = user.Id, BranchId = branchId });
 
+        foreach (var rt in model.ResourceTypeNames)
+            db.UserResourceTypes.Add(new AppUserResourceType { UserId = user.Id, ResourceTypeName = rt });
+
         await db.SaveChangesAsync();
 
         await audit.LogAsync(actorId, actorName, "CreateUser", "AppUser", user.Id,
@@ -77,6 +82,7 @@ public class UserService(
 
         var user = await userManager.Users
             .Include(u => u.UserBranches)
+            .Include(u => u.UserResourceTypes)
             .FirstOrDefaultAsync(u => u.Id == model.Id);
 
         if (user is null)
@@ -105,6 +111,11 @@ public class UserService(
         db.UserBranches.RemoveRange(existingLinks);
         foreach (var branchId in model.BranchIds)
             db.UserBranches.Add(new AppUserBranch { UserId = user.Id, BranchId = branchId });
+
+        var existingRts = await db.UserResourceTypes.Where(ur => ur.UserId == user.Id).ToListAsync();
+        db.UserResourceTypes.RemoveRange(existingRts);
+        foreach (var rt in model.ResourceTypeNames)
+            db.UserResourceTypes.Add(new AppUserResourceType { UserId = user.Id, ResourceTypeName = rt });
 
         await db.SaveChangesAsync();
 

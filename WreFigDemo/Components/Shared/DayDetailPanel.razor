@@ -62,6 +62,18 @@
                     <div class="info-val">@Row.ManagerName</div>
                 </div>
             }
+            @if (Row.ResourceTypes.Any())
+            {
+                <div class="info-block info-block-full">
+                    <label>Resource Types</label>
+                    <div class="resource-type-chips">
+                        @foreach (var rt in Row.ResourceTypes)
+                        {
+                            <span class="resource-type-chip">@rt</span>
+                        }
+                    </div>
+                </div>
+            }
         </div>
 
         @* Supervisor note *@

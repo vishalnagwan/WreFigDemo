@@ -113,6 +113,22 @@ else
             </div>
 
             <div class="form-group">
+                <label>Resource Types</label>
+                <div class="branch-checklist">
+                    @foreach (var rt in AllResourceTypes)
+                    {
+                        var rtName = rt;
+                        <label class="branch-check-item">
+                            <input type="checkbox"
+                                   checked="@FormResourceTypes.Contains(rtName)"
+                                   @onchange="e => ToggleResourceType(rtName, (bool)e.Value!)" />
+                            @rt
+                        </label>
+                    }
+                </div>
+            </div>
+
+            <div class="form-group">
                 <label>Active</label>
                 <input type="checkbox" @bind="FormIsActive" />
             </div>
@@ -134,13 +150,21 @@ else
     private string ActorId    = string.Empty;
     private string ActorName  = string.Empty;
 
-    private string      FormName     = string.Empty;
-    private string      FormEmail    = string.Empty;
-    private string      FormPassword = string.Empty;
-    private string      FormRole     = AppRoles.Planner;
-    private bool        FormIsActive = true;
-    private HashSet<int> FormBranchIds = [];
-    private List<string> FormErrors   = [];
+    private string       FormName          = string.Empty;
+    private string       FormEmail         = string.Empty;
+    private string       FormPassword      = string.Empty;
+    private string       FormRole          = AppRoles.Planner;
+    private bool         FormIsActive      = true;
+    private HashSet<int>    FormBranchIds    = [];
+    private HashSet<string> FormResourceTypes = [];
+    private List<string>    FormErrors        = [];
+
+    private static readonly string[] AllResourceTypes =
+    [
+        "Bulk Hauling", "CCTV", "Drain Cleaning", "Inside Grease (IG)", "Install",
+        "Lift Station", "Mechanic", "Plumbing", "Projects", "Pumping",
+        "Repair", "Roll Off", "Trailer", "Vactor"
+    ];
 
     private static readonly string[] AllRoles =
     [
@@ -166,32 +190,40 @@ else
 
     private void OpenCreate()
     {
-        EditId        = null;
-        FormName      = FormEmail = FormPassword = string.Empty;
-        FormRole      = AppRoles.Planner;
-        FormIsActive  = true;
-        FormBranchIds = [];
-        FormErrors    = [];
-        ShowForm      = true;
+        EditId           = null;
+        FormName         = FormEmail = FormPassword = string.Empty;
+        FormRole         = AppRoles.Planner;
+        FormIsActive     = true;
+        FormBranchIds    = [];
+        FormResourceTypes = [];
+        FormErrors       = [];
+        ShowForm         = true;
     }
 
     private void OpenEdit(UserListVm u)
     {
-        EditId        = u.Id;
-        FormName      = u.FullName;
-        FormEmail     = u.Email;
-        FormPassword  = string.Empty;
-        FormRole      = u.Role;
-        FormIsActive  = u.IsActive;
-        FormBranchIds = u.BranchIds.ToHashSet();
-        FormErrors    = [];
-        ShowForm      = true;
+        EditId           = u.Id;
+        FormName         = u.FullName;
+        FormEmail        = u.Email;
+        FormPassword     = string.Empty;
+        FormRole         = u.Role;
+        FormIsActive     = u.IsActive;
+        FormBranchIds    = u.BranchIds.ToHashSet();
+        FormResourceTypes = u.ResourceTypeNames.ToHashSet();
+        FormErrors       = [];
+        ShowForm         = true;
     }
 
     private void ToggleBranch(int branchId, bool isChecked)
     {
         if (isChecked) FormBranchIds.Add(branchId);
         else           FormBranchIds.Remove(branchId);
+    }
+
+    private void ToggleResourceType(string rt, bool isChecked)
+    {
+        if (isChecked) FormResourceTypes.Add(rt);
+        else           FormResourceTypes.Remove(rt);
     }
 
     private void CloseForm() => ShowForm = false;
@@ -206,23 +238,25 @@ else
         {
             (ok, errors) = await UserSvc.CreateUserAsync(new CreateUserVm
             {
-                FullName  = FormName,
-                Email     = FormEmail,
-                Password  = FormPassword,
-                Role      = FormRole,
-                BranchIds = FormBranchIds.ToList()
+                FullName          = FormName,
+                Email             = FormEmail,
+                Password          = FormPassword,
+                Role              = FormRole,
+                BranchIds         = FormBranchIds.ToList(),
+                ResourceTypeNames = FormResourceTypes.ToList()
             }, ActorId, ActorName);
         }
         else
         {
             (ok, errors) = await UserSvc.UpdateUserAsync(new EditUserVm
             {
-                Id        = EditId,
-                FullName  = FormName,
-                Email     = FormEmail,
-                Role      = FormRole,
-                IsActive  = FormIsActive,
-                BranchIds = FormBranchIds.ToList()
+                Id                = EditId,
+                FullName          = FormName,
+                Email             = FormEmail,
+                Role              = FormRole,
+                IsActive          = FormIsActive,
+                BranchIds         = FormBranchIds.ToList(),
+                ResourceTypeNames = FormResourceTypes.ToList()
             }, ActorId, ActorName);
         }
 

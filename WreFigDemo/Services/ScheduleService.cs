@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using WreFigDemo.Data;
+using WreFigDemo.Identity;
 using WreFigDemo.Models.Entities;
 using WreFigDemo.Models.ViewModels;
 
@@ -20,6 +21,32 @@ public class ScheduleService(IDbContextFactory<AppDbContext> dbFactory, IAuditSe
             .OrderBy(e => e.DefaultShift)
             .ThenBy(e => e.Name)
             .ToListAsync();
+
+        // Build a map of employee email → resource types from AppUser assignments
+        var employeeEmails = employees
+            .Where(e => !string.IsNullOrWhiteSpace(e.Email))
+            .Select(e => e.Email!.ToLower())
+            .Distinct()
+            .ToList();
+
+        var resourceTypesByEmail = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        if (employeeEmails.Count > 0)
+        {
+            var appUsers = await db.Set<AppUser>()
+                .AsNoTracking()
+                .Include(u => u.UserResourceTypes)
+                .Where(u => u.Email != null && employeeEmails.Contains(u.Email.ToLower()))
+                .ToListAsync();
+
+            foreach (var u in appUsers)
+            {
+                if (u.Email is not null)
+                    resourceTypesByEmail[u.Email] = u.UserResourceTypes
+                        .Select(r => r.ResourceTypeName)
+                        .OrderBy(r => r)
+                        .ToList();
+            }
+        }
 
         var entries = await db.ScheduleEntries
             .AsNoTracking()
@@ -53,6 +80,11 @@ public class ScheduleService(IDbContextFactory<AppDbContext> dbFactory, IAuditSe
                     HasNote    = !isNew && entry!.Note is not null
                 };
             }
+            var empResourceTypes = !string.IsNullOrWhiteSpace(emp.Email) &&
+                                   resourceTypesByEmail.TryGetValue(emp.Email, out var rts)
+                ? rts
+                : [];
+
             return new EmployeeScheduleRow
             {
                 EmployeeId      = emp.Id,
@@ -61,6 +93,7 @@ public class ScheduleService(IDbContextFactory<AppDbContext> dbFactory, IAuditSe
                 TruckAssignment = emp.TruckAssignment,
                 TruckId         = emp.TruckId,
                 ManagerName     = emp.ManagerName,
+                ResourceTypes   = empResourceTypes,
                 Cells           = cells
             };
         }).ToList();

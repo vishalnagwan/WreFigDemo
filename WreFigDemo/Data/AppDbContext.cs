@@ -14,7 +14,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<Employee> Employees => Set<Employee>();
     public DbSet<ScheduleEntry> ScheduleEntries => Set<ScheduleEntry>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
-    public DbSet<AppUserBranch> UserBranches => Set<AppUserBranch>();
+    public DbSet<AppUserBranch>       UserBranches      => Set<AppUserBranch>();
+    public DbSet<AppUserResourceType> UserResourceTypes => Set<AppUserResourceType>();
     public DbSet<ScheduleStatusCode> StatusCodes => Set<ScheduleStatusCode>();
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -24,6 +25,16 @@ public class AppDbContext : IdentityDbContext<AppUser>
         // Composite PK for user-branch mapping
         builder.Entity<AppUserBranch>()
             .HasKey(ub => new { ub.UserId, ub.BranchId });
+
+        // Composite PK for user-resource-type mapping
+        builder.Entity<AppUserResourceType>()
+            .HasKey(ur => new { ur.UserId, ur.ResourceTypeName });
+
+        builder.Entity<AppUserResourceType>()
+            .HasOne(ur => ur.User)
+            .WithMany(u => u.UserResourceTypes)
+            .HasForeignKey(ur => ur.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.Entity<AppUserBranch>()
             .HasOne(ub => ub.User)
