@@ -7,6 +7,8 @@
             <nav class="app-topbar">
                 <img src="/images/wre-logo.png" class="topbar-logo-img" alt="Wind River" />
 
+                <div class="topbar-brand-center">WRE&nbsp;– FIG</div>
+
                 <div class="topbar-nav">
                     <NavLink href="/" Match="NavLinkMatch.All" class="topbar-nav-link">
                         Home
@@ -28,13 +30,7 @@
                         </Authorized>
                     </AuthorizeView>
 
-                    <AuthorizeView Roles="@string.Join(",", AppRoles.RolloverRoles)">
-                        <Authorized Context="_">
-                            <NavLink href="/rollover" class="topbar-nav-link">
-                                Rollover
-                            </NavLink>
-                        </Authorized>
-                    </AuthorizeView>
+                    @* Rollover nav hidden — page and functionality intact at /rollover *@
 
                     <AuthorizeView Roles="@AppRoles.PlannerDashboard">
                         <Authorized Context="_">

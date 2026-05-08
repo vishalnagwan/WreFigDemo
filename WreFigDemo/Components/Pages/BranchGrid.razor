@@ -155,7 +155,7 @@ else if (Grid is not null)
                                 <td class="day-col @(d.IsWeekend ? "weekend" : "") @(unviewed ? "note-alert" : "")"
                                     @onclick="() => HandleCellClick(row, d.Day, cell)">
                                     <ShiftChip Code="@cell.StatusCode"
-                                               HasNote="@cell.HasNote"
+                                               HasNote="@unviewed"
                                                JustPainted="@just" />
                                 </td>
                             }

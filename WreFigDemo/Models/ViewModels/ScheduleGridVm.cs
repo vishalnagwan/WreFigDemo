@@ -24,6 +24,8 @@ public class EmployeeScheduleRow
     public string? TruckAssignment  { get; set; }
     public string? TruckId          { get; set; }
     public string? ManagerName      { get; set; }
+    public string? WorkPhone        { get; set; }
+    public string? WorkMobilePhone  { get; set; }
     public List<string> ResourceTypes { get; set; } = [];
     /// <summary>Key = day of month (1..31)</summary>
     public Dictionary<int, DayCell> Cells { get; set; } = [];

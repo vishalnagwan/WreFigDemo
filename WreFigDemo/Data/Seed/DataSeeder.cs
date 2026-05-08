@@ -290,7 +290,81 @@ public static class DataSeeder
             await db.SaveChangesAsync();
             await SeedAprilScheduleAsync(db, newEmployees);
         }
+
+        // One-time pass: fill WorkMobilePhone for any employee that doesn't have one yet.
+        await SeedEmployeePhonesAsync(db);
         } // end employees block
+    }
+
+    private static async Task SeedEmployeePhonesAsync(AppDbContext db)
+    {
+        // Static mobile-phone lookup keyed by employee name.
+        // Uses realistic 10-digit US numbers formatted as (NXX) NXX-XXXX.
+        var phones = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            // North
+            ["Frank Ouellet"]   = "(802) 555-0101", ["Diane Larose"]    = "(802) 555-0102",
+            ["Paul Tetreault"]  = "(802) 555-0103", ["Kevin Morse"]     = "(603) 555-0201",
+            ["Carla Jennings"]  = "(603) 555-0202", ["A. Sullivan"]     = "(603) 555-0203",
+            ["Mike Ferrara"]    = "(781) 555-0301", ["Janet Ramos"]     = "(781) 555-0302",
+            ["Steve Correia"]   = "(781) 555-0303", ["Dan Leary"]       = "(978) 555-0401",
+            ["Tina Palazzi"]    = "(978) 555-0402", ["Greg Santos"]     = "(978) 555-0403",
+            ["Bill Hennessy"]   = "(978) 555-0501", ["Rosa Vega"]       = "(978) 555-0502",
+            ["T. Callahan"]     = "(978) 555-0503", ["Ed Shaughnessy"]  = "(508) 555-0601",
+            ["Amy Teixeira"]    = "(508) 555-0602", ["Luis Pinto"]      = "(508) 555-0603",
+            ["Tom Furtado"]     = "(508) 555-0701", ["Maria Pacheco"]   = "(508) 555-0702",
+            ["Scott Pelletier"] = "(860) 555-0801", ["Debra Riccio"]    = "(860) 555-0802",
+            ["J. Marinelli"]    = "(860) 555-0803", ["Carlos Rivera"]   = "(413) 555-0901",
+            ["Donna Reyes"]     = "(413) 555-0902", ["Ray Colon"]       = "(413) 555-0903",
+            ["Phil Tremblay"]   = "(203) 555-1001", ["Kim Albano"]      = "(203) 555-1002",
+            // Mid-Atlantic
+            ["TJ Martinez"]     = "(856) 555-1101", ["Caleb Lucas"]     = "(856) 555-1102",
+            ["Robert Hall"]     = "(856) 555-1103", ["M. Rodriguez"]    = "(856) 555-1104",
+            ["Dave Kowalski"]   = "(973) 555-1201", ["Lori Gallo"]      = "(973) 555-1202",
+            ["Mark Esposito"]   = "(973) 555-1203", ["Tony Soriano"]    = "(732) 555-1301",
+            ["Sandy Greco"]     = "(732) 555-1302", ["R. DeSimone"]     = "(732) 555-1303",
+            ["Wayne Stoltzfus"] = "(717) 555-1401", ["Ruth Beiler"]     = "(717) 555-1402",
+            ["Earl Kreider"]    = "(717) 555-1403", ["Gary Harrington"] = "(215) 555-1501",
+            ["Nancy Seidel"]    = "(215) 555-1502", ["Joe Kishbaugh"]   = "(570) 555-1601",
+            ["Barb Labar"]      = "(570) 555-1602", ["K. Sterchak"]     = "(570) 555-1603",
+            ["Chuck Malone"]    = "(724) 555-1701", ["Patty Sebek"]     = "(724) 555-1702",
+            ["Brian Svonavec"]  = "(814) 555-1801", ["Angie Plummer"]   = "(814) 555-1802",
+            ["Marcus Webb"]     = "(410) 555-1901", ["Sharon Diggs"]    = "(410) 555-1902",
+            ["Leon Watkins"]    = "(410) 555-1903", ["Roy Hundley"]     = "(703) 555-2001",
+            ["Faye Tanner"]     = "(703) 555-2002",
+            // Mid-South
+            ["Derek Shaw"]      = "(704) 555-2101", ["Lisa Monroe"]     = "(704) 555-2102",
+            ["James Pryor"]     = "(704) 555-2103", ["Sara Whitfield"]  = "(828) 555-2201",
+            ["Alan Bridges"]    = "(828) 555-2202", ["B. Combs"]        = "(828) 555-2203",
+            ["Pat Nguyen"]      = "(919) 555-2301", ["Chris Talbot"]    = "(919) 555-2302",
+            ["Nina Park"]       = "(919) 555-2303", ["Dwight Puckett"]  = "(770) 555-2401",
+            ["Cheryl Mahone"]   = "(770) 555-2402", ["Troy Hicks"]      = "(770) 555-2403",
+            ["Wanda Colson"]    = "(615) 555-2501", ["Brent Lester"]    = "(615) 555-2502",
+            ["D. Whitmore"]     = "(615) 555-2503",
+            // South
+            ["Ray Delgado"]     = "(239) 555-2601", ["Iris Castillo"]   = "(239) 555-2602",
+            ["Marco Suarez"]    = "(239) 555-2603", ["Phil Okafor"]     = "(352) 555-2701",
+            ["Tammy Byrd"]      = "(352) 555-2702", ["S. Weatherly"]    = "(352) 555-2703",
+            ["Andre Thomas"]    = "(904) 555-2801", ["Gwen Crosby"]     = "(904) 555-2802",
+            ["Ben Strickland"]  = "(904) 555-2803", ["Hector Fuentes"]  = "(727) 555-2901",
+            ["Diana Rojas"]     = "(727) 555-2902", ["E. Quinones"]     = "(727) 555-2903",
+            ["Walt Kimball"]    = "(772) 555-3001", ["Connie Aldrich"]  = "(772) 555-3002",
+            ["Jesse Morales"]   = "(407) 555-3101", ["Kim Dupont"]      = "(407) 555-3102",
+            ["Pete Salazar"]    = "(407) 555-3103",
+        };
+
+        var toUpdate = await db.Employees
+            .Where(e => e.WorkMobilePhone == null)
+            .ToListAsync();
+
+        foreach (var emp in toUpdate)
+        {
+            if (phones.TryGetValue(emp.Name, out var phone))
+                emp.WorkMobilePhone = phone;
+        }
+
+        if (toUpdate.Any(e => e.WorkMobilePhone != null))
+            await db.SaveChangesAsync();
     }
 
     private static async Task SeedAprilScheduleAsync(AppDbContext db, List<Employee> employees)

@@ -62,6 +62,19 @@
                     <div class="info-val">@Row.ManagerName</div>
                 </div>
             }
+            @{
+                var phone = Row.WorkMobilePhone ?? Row.WorkPhone;
+            }
+            @if (phone is not null)
+            {
+                <div class="info-block">
+                    <label>Phone</label>
+                    <div class="info-val" style="display:flex;align-items:center;gap:10px">
+                        <span>@phone</span>
+                        <span class="dialpad-link" title="DialPad integration — coming soon">&#128222; DialPad</span>
+                    </div>
+                </div>
+            }
             @if (Row.ResourceTypes.Any())
             {
                 <div class="info-block info-block-full">

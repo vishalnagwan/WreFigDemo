@@ -87,14 +87,16 @@ public class ScheduleService(IDbContextFactory<AppDbContext> dbFactory, IAuditSe
 
             return new EmployeeScheduleRow
             {
-                EmployeeId      = emp.Id,
-                EmployeeName    = emp.Name,
-                DefaultShift    = emp.DefaultShift,
-                TruckAssignment = emp.TruckAssignment,
-                TruckId         = emp.TruckId,
-                ManagerName     = emp.ManagerName,
-                ResourceTypes   = empResourceTypes,
-                Cells           = cells
+                EmployeeId       = emp.Id,
+                EmployeeName     = emp.Name,
+                DefaultShift     = emp.DefaultShift,
+                TruckAssignment  = emp.TruckAssignment,
+                TruckId          = emp.TruckId,
+                ManagerName      = emp.ManagerName,
+                WorkPhone        = emp.WorkPhone,
+                WorkMobilePhone  = emp.WorkMobilePhone,
+                ResourceTypes    = empResourceTypes,
+                Cells            = cells
             };
         }).ToList();
 
