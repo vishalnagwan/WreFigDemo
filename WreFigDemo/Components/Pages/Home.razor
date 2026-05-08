@@ -4,6 +4,7 @@
 @inject AuthenticationStateProvider AuthState
 @inject NavigationManager Nav
 @inject NoteViewStateService NoteViewState
+@inject IJSRuntime JS
 
 <PageTitle>WRE FIG — All Field Offices</PageTitle>
 
@@ -166,6 +167,30 @@ else
         await LoadAsync();
     }
 
+    // Restore previously-viewed branch state from localStorage so the bell stays
+    // cleared even after logout / page refresh (JS interop requires AfterRender).
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && UserId is not null)
+        {
+            try
+            {
+                var ids = await JS.InvokeAsync<int[]>("wreGetViewedBranches", UserId);
+                bool changed = false;
+                foreach (var id in ids)
+                {
+                    if (!NoteViewState.IsBranchViewed(id))
+                    {
+                        NoteViewState.MarkBranchViewed(id);
+                        changed = true;
+                    }
+                }
+                if (changed) StateHasChanged();
+            }
+            catch { /* localStorage unavailable — degrade gracefully */ }
+        }
+    }
+
     private async Task LoadAsync()
     {
         Loading  = true;
@@ -210,6 +235,9 @@ else
     private void GoToSchedule(int branchId)
     {
         NoteViewState.MarkBranchViewed(branchId);
+        // Persist to localStorage so the branch stays "viewed" after logout/re-login
+        if (UserId is not null)
+            _ = JS.InvokeVoidAsync("wreSetViewedBranch", UserId, branchId).AsTask();
         Nav.NavigateTo($"/schedule/{branchId}?year={Year}&month={Month}");
     }
 }

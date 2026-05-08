@@ -244,7 +244,35 @@ else if (Grid is not null)
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
+        {
             await JS.InvokeVoidAsync("registerEscKey", DotNetObjectReference.Create(this));
+
+            // Restore viewed-cell state from localStorage so bell icons stay cleared
+            // after logout/re-login (JS interop only available post-render).
+            if (UserId is not null)
+            {
+                try
+                {
+                    var cellKeys = await JS.InvokeAsync<string[]>("wreGetViewedCells", UserId);
+                    bool changed = false;
+                    foreach (var key in cellKeys)
+                    {
+                        // Key format: "{employeeId}:{yyyy-MM-dd}"
+                        var sep = key.IndexOf(':');
+                        if (sep > 0
+                            && int.TryParse(key[..sep], out var empId)
+                            && DateOnly.TryParse(key[(sep + 1)..], out var date)
+                            && !NoteViewState.IsCellViewed(empId, date))
+                        {
+                            NoteViewState.MarkCellViewed(empId, date);
+                            changed = true;
+                        }
+                    }
+                    if (changed) StateHasChanged();
+                }
+                catch { /* localStorage unavailable — degrade gracefully */ }
+            }
+        }
     }
 
     [JSInvokable]
@@ -368,9 +396,19 @@ else if (Grid is not null)
         DetailDay  = day;
         DetailCell = cell;
 
-        // Mark noted cell as viewed so the highlight clears
+        // Mark noted cell as viewed so the amber glow AND bell chip clear immediately.
+        // StateHasChanged() is called explicitly so the grid re-renders before the panel
+        // overlay appears — the bell is already gone by the time the panel slides in.
+        // Also persist to localStorage so the bell stays cleared after logout/re-login.
         if (cell.HasNote)
-            NoteViewState.MarkCellViewed(row.EmployeeId, new DateOnly(SafeYear, SafeMonth, day));
+        {
+            var noteDate = new DateOnly(SafeYear, SafeMonth, day);
+            NoteViewState.MarkCellViewed(row.EmployeeId, noteDate);
+            if (UserId is not null)
+                _ = JS.InvokeVoidAsync("wreSetViewedCell", UserId,
+                        $"{row.EmployeeId}:{noteDate:yyyy-MM-dd}").AsTask();
+            StateHasChanged();
+        }
     }
 
     private void CloseDetail()

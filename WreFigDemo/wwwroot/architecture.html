@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WRE FIG — Technical Architecture</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; padding: 32px; }
+  h1 { font-size: 22px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #64748b; margin-bottom: 28px; }
+
+  /* ── Layout ── */
+  .diagram { display: flex; flex-direction: column; gap: 12px; max-width: 1100px; margin: 0 auto; }
+  .row { display: flex; gap: 12px; align-items: stretch; }
+
+  /* ── Layer card ── */
+  .layer {
+    border-radius: 10px; padding: 14px 16px;
+    border: 1.5px solid transparent;
+    flex: 1;
+  }
+  .layer-title {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; margin-bottom: 10px; opacity: 0.7;
+  }
+  .boxes { display: flex; flex-wrap: wrap; gap: 7px; }
+  .box {
+    border-radius: 6px; padding: 7px 11px;
+    font-size: 12px; font-weight: 600;
+    border: 1px solid rgba(0,0,0,0.08);
+    white-space: nowrap;
+  }
+  .box small { display: block; font-size: 10px; font-weight: 400; opacity: 0.75; margin-top: 1px; }
+
+  /* ── Arrow ── */
+  .arrow-row { display: flex; justify-content: center; align-items: center; gap: 8px; font-size: 11px; color: #94a3b8; }
+  .arrow-row svg { flex-shrink: 0; }
+
+  /* ── Colours per layer ── */
+  .layer-browser   { background: #eff6ff; border-color: #bfdbfe; }
+  .layer-browser   .layer-title { color: #1d4ed8; }
+  .layer-browser   .box { background: #dbeafe; color: #1e40af; }
+
+  .layer-blazor    { background: #f0fdf4; border-color: #bbf7d0; }
+  .layer-blazor    .layer-title { color: #15803d; }
+  .layer-blazor    .box { background: #dcfce7; color: #166534; }
+
+  .layer-services  { background: #fefce8; border-color: #fde68a; }
+  .layer-services  .layer-title { color: #a16207; }
+  .layer-services  .box { background: #fef9c3; color: #854d0e; }
+
+  .layer-identity  { background: #fdf4ff; border-color: #e9d5ff; }
+  .layer-identity  .layer-title { color: #7e22ce; }
+  .layer-identity  .box { background: #f3e8ff; color: #6b21a8; }
+
+  .layer-data      { background: #fff7ed; border-color: #fed7aa; }
+  .layer-data      .layer-title { color: #c2410c; }
+  .layer-data      .box { background: #ffedd5; color: #9a3412; }
+
+  .layer-db        { background: #f8fafc; border-color: #cbd5e1; }
+  .layer-db        .layer-title { color: #475569; }
+  .layer-db        .box { background: #e2e8f0; color: #334155; }
+
+  .layer-ext       { background: #fff1f2; border-color: #fecdd3; }
+  .layer-ext       .layer-title { color: #be123c; }
+  .layer-ext       .box { background: #ffe4e6; color: #9f1239; }
+  .layer-ext       .box.future { opacity: 0.55; border-style: dashed; }
+
+  .layer-roles     { background: #ecfdf5; border-color: #a7f3d0; }
+  .layer-roles     .layer-title { color: #065f46; }
+  .layer-roles     .box { background: #d1fae5; color: #064e3b; font-size: 11px; }
+
+  /* ── Wide full-width row ── */
+  .full { flex: 1; min-width: 0; }
+
+  /* ── Legend ── */
+  .legend { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 20px; padding: 12px 16px; background: white; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 12px; color: #475569; }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+  /* connection lines */
+  .connector { text-align: center; color: #94a3b8; font-size: 13px; line-height: 1; }
+</style>
+</head>
+<body>
+
+<div style="max-width:1100px;margin:0 auto">
+  <h1>WRE FIG — Technical Architecture</h1>
+  <p class="subtitle">ASP.NET Core 8 · Blazor Server · SQL Server · Entity Framework Core · ASP.NET Identity</p>
+
+  <div class="diagram">
+
+    <!-- Row 1: Browser -->
+    <div class="layer layer-browser full">
+      <div class="layer-title">Client — Browser</div>
+      <div class="boxes">
+        <div class="box">Blazor Server (SignalR WebSocket)<small>Persistent circuit — real-time UI sync</small></div>
+        <div class="box">Static Assets<small>wwwroot / CSS / images</small></div>
+        <div class="box">JavaScript Interop<small>Panel close · ESC key handler</small></div>
+      </div>
+    </div>
+
+    <div class="connector">▼ HTTPS / SignalR</div>
+
+    <!-- Row 2: Blazor App Layer -->
+    <div class="row">
+      <div class="layer layer-blazor" style="flex:2">
+        <div class="layer-title">Blazor Server — Pages &amp; Components</div>
+        <div class="boxes">
+          <div class="box">Home.razor<small>Branch home / field office list</small></div>
+          <div class="box">BranchGrid.razor<small>Monthly schedule grid · paint mode</small></div>
+          <div class="box">Alerts.razor<small>Change alerts inbox · urgency queue</small></div>
+          <div class="box">Compliance.razor<small>Fill-rate compliance dashboard</small></div>
+          <div class="box">UserManagement.razor<small>Admin: CRUD users + branch assignment</small></div>
+          <div class="box">Rollover.razor<small>Month open/close console (Dispatch Sup)</small></div>
+          <div class="box">AccessDenied.razor<small>Role-gated redirect</small></div>
+        </div>
+        <div class="boxes" style="margin-top:8px">
+          <div class="box">DayDetailPanel<small>Shared: driver day overlay</small></div>
+          <div class="box">ShiftChip<small>Status code chip · bell indicator</small></div>
+          <div class="box">FillBar<small>Fill-rate progress bar</small></div>
+          <div class="box">NavMenu / MainLayout<small>Top bar · role-aware nav links</small></div>
+        </div>
+      </div>
+
+      <div class="layer layer-identity" style="flex:1">
+        <div class="layer-title">Auth — Razor Pages</div>
+        <div class="boxes">
+          <div class="box">Login.cshtml<small>Cookie-based login</small></div>
+          <div class="box">Logout.cshtml<small>Sign-out &amp; redirect</small></div>
+        </div>
+        <div class="boxes" style="margin-top:8px">
+          <div class="box">AppRoles<small>6 roles + permission arrays</small></div>
+          <div class="box">AppUserClaimsPrincipalFactory<small>fullname claim injection</small></div>
+        </div>
+        <div class="boxes" style="margin-top:8px">
+          <div class="box" style="width:100%">Role Matrix<small>WriteRoles · NoteRoles · AlertRoles · ComplianceRoles · RolloverRoles</small></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector">▼ Scoped DI services</div>
+
+    <!-- Row 3: Services -->
+    <div class="row">
+      <div class="layer layer-services" style="flex:2">
+        <div class="layer-title">Application Services (Scoped per request)</div>
+        <div class="boxes">
+          <div class="box">IBranchService<small>Branch list · compliance rollup · scope filter</small></div>
+          <div class="box">IScheduleService<small>Grid VM · upsert cell · upsert note</small></div>
+          <div class="box">IAuditService<small>Change log · alert feed · employee history</small></div>
+          <div class="box">IUserService<small>CRUD AppUser · branch / resource assignment</small></div>
+          <div class="box">IMonthStateService<small>Open/close months · rollover ritual</small></div>
+          <div class="box">IStatusCodeService<small>Paint-bar codes (WA WP O CO OC TR HD WX)</small></div>
+          <div class="box">IEmailNotificationService<small>Compliance alerts (SMTP stub)</small></div>
+        </div>
+        <div class="boxes" style="margin-top:8px">
+          <div class="box">NoteViewStateService<small>Circuit-scoped: viewed cell / branch tracking</small></div>
+          <div class="box">AlertReadStateService<small>Circuit-scoped: read/unread alert state</small></div>
+          <div class="box">ComplianceNotificationJob<small>IHostedService: background compliance check</small></div>
+        </div>
+      </div>
+
+      <div class="layer layer-roles" style="flex:1">
+        <div class="layer-title">6 Role Permission Model</div>
+        <div class="boxes">
+          <div class="box">PlannerDashboard (Admin)<small>All branches · R/W · User Mgmt · Rollover</small></div>
+          <div class="box">FieldSupervisor<small>Assigned branches · R/W</small></div>
+          <div class="box">DispatchSupervisor<small>All branches · R/W · Rollover Console</small></div>
+          <div class="box">Planner<small>All branches · R/W · Alerts · Compliance</small></div>
+          <div class="box">Dispatcher<small>All branches · R/W · Alerts only</small></div>
+          <div class="box">OtherEmployee<small>All branches · Read only · no tabs</small></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector">▼ EF Core DbContextFactory</div>
+
+    <!-- Row 4: Data Access -->
+    <div class="layer layer-data full">
+      <div class="layer-title">Data Access — Entity Framework Core 8 (DbContextFactory, Scoped)</div>
+      <div class="boxes">
+        <div class="box">AppDbContext<small>IdentityDbContext&lt;AppUser&gt;</small></div>
+        <div class="box">Auto-migration on startup<small>db.Database.MigrateAsync()</small></div>
+        <div class="box">DataSeeder<small>Regions · Branches · Employees · Users · Phones · Status codes</small></div>
+        <div class="box">Unique indexes<small>Employee+Date · Year+Month · Branch+State+City</small></div>
+        <div class="box">Cascade deletes<small>UserBranch · UserResourceType</small></div>
+      </div>
+    </div>
+
+    <div class="connector">▼ SQL Server connection string</div>
+
+    <!-- Row 5: Database tables -->
+    <div class="layer layer-db full">
+      <div class="layer-title">SQL Server — Database Tables</div>
+      <div class="boxes">
+        <div class="box">Regions</div>
+        <div class="box">Branches<small>State · City · status</small></div>
+        <div class="box">Employees<small>Name · Shift · Truck · Phone · Manager</small></div>
+        <div class="box">ScheduleEntries<small>EmployeeId · Date · StatusCode · Note</small></div>
+        <div class="box">AuditLogs<small>Action · Entity · OldVal · NewVal · Timestamp</small></div>
+        <div class="box">StatusCodes<small>Code · Label · CssClass · SortOrder</small></div>
+        <div class="box">MonthLocks<small>Year · Month · IsOpen · ModifiedBy</small></div>
+        <div class="box">AppUsers<small>ASP.NET Identity</small></div>
+        <div class="box">AppUserBranch<small>UserId ↔ BranchId</small></div>
+        <div class="box">AppUserResourceType<small>UserId ↔ ResourceTypeName</small></div>
+        <div class="box">AspNetRoles / RoleClaims<small>Identity tables</small></div>
+      </div>
+    </div>
+
+    <div class="connector">▼ Future / Planned integrations</div>
+
+    <!-- Row 6: External -->
+    <div class="layer layer-ext full">
+      <div class="layer-title">External Integrations</div>
+      <div class="boxes">
+        <div class="box">Fleetio<small>Truck sync (live display in panel)</small></div>
+        <div class="box future">DialPad<small>Click-to-call · driver phone (planned)</small></div>
+        <div class="box future">Descartes<small>Route publish status (planned)</small></div>
+        <div class="box future">SMTP / Email<small>Compliance notifications (stub)</small></div>
+      </div>
+    </div>
+
+  </div><!-- /diagram -->
+
+  <div class="legend">
+    <strong style="color:#1e293b;margin-right:4px">Legend:</strong>
+    <div class="legend-item"><div class="legend-dot" style="background:#dbeafe"></div> Browser / Client</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#dcfce7"></div> Blazor Components &amp; Pages</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#fef9c3"></div> Application Services</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#f3e8ff"></div> Identity &amp; Auth</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#d1fae5"></div> Role Permission Model</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#ffedd5"></div> EF Core / Data Access</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#e2e8f0"></div> SQL Server Tables</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#ffe4e6"></div> External Integrations</div>
+    <div class="legend-item" style="opacity:0.55"><div class="legend-dot" style="background:#ffe4e6;border:1px dashed #f43f5e"></div> Planned / Future</div>
+  </div>
+
+  <p style="margin-top:16px;font-size:11px;color:#94a3b8;text-align:center">
+    WRE FIG POC · ASP.NET Core 8 Blazor Server · Generated May 2026
+  </p>
+</div>
+
+</body>
+</html>

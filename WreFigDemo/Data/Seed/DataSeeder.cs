@@ -413,8 +413,8 @@ public static class DataSeeder
 
     private static async Task SeedUsersAsync(UserManager<AppUser> userMgr, AppDbContext db)
     {
-        if (await userMgr.Users.AnyAsync()) return;
-
+        // Check per-user (not a blanket "any users" guard) so new seed entries
+        // are created even when the database already has other users.
         var swedesboroId = db.Branches.First(b => b.City == "Swedesboro").Id;
         var stanleyId    = db.Branches.First(b => b.City == "Stanley").Id;
         var booneId      = db.Branches.First(b => b.City == "Boone").Id;
@@ -431,17 +431,24 @@ public static class DataSeeder
             (new AppUser { UserName = "employee@wre.com",  Email = "employee@wre.com",  FullName = "Jane Employee"   }, "Emp@123!",     AppRoles.OtherEmployee,      [swedesboroId]),
         };
 
+        bool anyAdded = false;
         foreach (var (user, password, role, branchIds) in seedUsers)
         {
+            // Skip if this email already exists
+            if (await userMgr.FindByEmailAsync(user.Email) is not null)
+                continue;
+
             var result = await userMgr.CreateAsync(user, password);
             if (result.Succeeded)
             {
                 await userMgr.AddToRoleAsync(user, role);
                 foreach (var bid in branchIds)
                     db.UserBranches.Add(new AppUserBranch { UserId = user.Id, BranchId = bid });
+                anyAdded = true;
             }
         }
 
-        await db.SaveChangesAsync();
+        if (anyAdded)
+            await db.SaveChangesAsync();
     }
 }
