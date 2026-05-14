@@ -1,10 +1,12 @@
 @page "/schedule/{BranchId:int}"
 @attribute [Authorize]
 @using WreFigDemo.Models.Entities
+@using WreFigDemo.Models
 @inject IScheduleService ScheduleSvc
 @inject IBranchService BranchSvc
 @inject IAuditService AuditSvc
 @inject IStatusCodeService StatusCodeSvc
+@inject IBranchInstructionService InstructionSvc
 @inject NoteViewStateService NoteViewState
 @inject AuthenticationStateProvider AuthState
 @inject NavigationManager Nav
@@ -51,6 +53,13 @@ else if (Grid is not null)
             }
         </div>
     </div>
+
+    @* Top branch instructions — above fill bar and apply status *@
+    <BranchInstructions @ref="_topInstructions"
+                        BranchId="BranchId"
+                        Position="InstructionPosition.Top"
+                        CanEdit="CanInstructionEdit"
+                        OnEditRequested="OpenInstructionEditor" />
 
     @* Fill bar *@
     @if (Summary is not null)
@@ -166,6 +175,26 @@ else if (Grid is not null)
         </table>
     </div>
 
+    @* Bottom dispatch/logistics notes — below the grid, sibling not wrapper *@
+    <div style="margin-top:8px">
+        <BranchInstructions @ref="_bottomInstructions"
+                            BranchId="BranchId"
+                            Position="InstructionPosition.Bottom"
+                            CanEdit="CanInstructionEdit"
+                            OnEditRequested="OpenInstructionEditor" />
+    </div>
+
+    @* Instruction editor overlay *@
+    @if (_instructionEditorOpen && _instructionVm is not null)
+    {
+        <BranchInstructionEditor Vm="_instructionVm"
+                                 BranchName="@(Summary?.BranchName ?? string.Empty)"
+                                 UserId="@UserId"
+                                 UserName="@UserName"
+                                 OnSaved="HandleInstructionSaved"
+                                 OnClose="CloseInstructionEditor" />
+    }
+
     @* Legend *@
     <div class="legend">
         <div class="legend-item"><span class="legend-swatch" style="background:var(--purple-am);border-color:var(--purple-am-border)"></span>WA - Working AM</div>
@@ -197,12 +226,19 @@ else if (Grid is not null)
 
     private ScheduleGridVm?  Grid;
     private BranchSummaryVm? Summary;
-    private bool             Loading  = true;
-    private bool             CanEdit;   // can paint / change status codes
-    private bool             CanNote;   // can add / edit supervisor notes
+    private bool             Loading           = true;
+    private bool             CanEdit;            // can paint / change status codes
+    private bool             CanNote;            // can add / edit supervisor notes
+    private bool             CanInstructionEdit; // can add / edit branch instructions
     private string?          UserId;
     private string?          UserName;
     private int              UnreadAlerts;
+
+    // Instruction editor state
+    private BranchInstructions?    _topInstructions;
+    private BranchInstructions?    _bottomInstructions;
+    private bool                   _instructionEditorOpen;
+    private BranchInstructionsVm?  _instructionVm;
 
     private EmployeeScheduleRow? DetailRow;
     private int                  DetailDay;
@@ -234,10 +270,9 @@ else if (Grid is not null)
         UserName = auth.User.FindFirst("fullname")?.Value
                 ?? auth.User.Identity?.Name
                 ?? string.Empty;
-        // WriteRoles: PlannerDashboard, FieldSupervisor, DispatchSupervisor
-        CanEdit  = AppRoles.WriteRoles.Any(r => auth.User.IsInRole(r));
-        // NoteRoles: WriteRoles + Planner (read & chase)
-        CanNote  = AppRoles.NoteRoles.Any(r => auth.User.IsInRole(r));
+        CanEdit           = AppRoles.WriteRoles.Any(r => auth.User.IsInRole(r));
+        CanNote           = AppRoles.NoteRoles.Any(r => auth.User.IsInRole(r));
+        CanInstructionEdit = AppRoles.InstructionEditRoles.Any(r => auth.User.IsInRole(r));
         await LoadAsync();
     }
 
@@ -415,6 +450,28 @@ else if (Grid is not null)
     {
         DetailRow  = null;
         DetailCell = null;
+    }
+
+    // ── Instruction editor ────────────────────────────────────────────────────
+
+    private async Task OpenInstructionEditor()
+    {
+        _instructionVm         = await InstructionSvc.GetForBranchAsync(BranchId);
+        _instructionEditorOpen = true;
+    }
+
+    private void CloseInstructionEditor()
+    {
+        _instructionEditorOpen = false;
+        _instructionVm         = null;
+    }
+
+    private async Task HandleInstructionSaved()
+    {
+        _instructionEditorOpen = false;
+        _instructionVm         = null;
+        if (_topInstructions    is not null) await _topInstructions.ReloadAsync();
+        if (_bottomInstructions is not null) await _bottomInstructions.ReloadAsync();
     }
 
 }

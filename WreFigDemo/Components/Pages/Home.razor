@@ -8,6 +8,11 @@
 
 <PageTitle>WRE FIG — All Field Offices</PageTitle>
 
+@if (_loadError is not null)
+{
+    <div style="margin:20px;padding:16px;background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;color:#7f1d1d;font-size:12px;font-family:monospace;white-space:pre-wrap">@_loadError</div>
+}
+
 @if (Loading)
 {
     <div class="loading">Loading…</div>
@@ -83,6 +88,7 @@ else
     private List<BranchSummaryVm> Branches      = [];
     private string  SearchText                  = string.Empty;
     private bool    Loading                     = true;
+    private string? _loadError;
     private int     Year                        = DateTime.Now.Year;
     private int     Month                       = DateTime.Now.Month;
     private string? UserId;
@@ -193,9 +199,20 @@ else
 
     private async Task LoadAsync()
     {
-        Loading  = true;
-        Branches = await BranchSvc.GetBranchSummariesAsync(Year, Month, UserId);
-        Loading  = false;
+        Loading    = true;
+        _loadError = null;
+        try
+        {
+            Branches = await BranchSvc.GetBranchSummariesAsync(Year, Month, UserId);
+        }
+        catch (Exception ex)
+        {
+            _loadError = $"{ex.GetType().FullName}: {ex.Message}\n\n--- Inner ---\n{ex.InnerException?.Message}\n\n--- Stack ---\n{ex.StackTrace}";
+        }
+        finally
+        {
+            Loading = false;
+        }
     }
 
     private async Task PrevMonth()

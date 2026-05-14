@@ -1,0 +1,178 @@
+@*
+    Slide-in editor panel for branch instructions.
+    All 11 sections (9 Top + 2 Bottom) are shown in a scrollable body.
+    Deep-copies the VM on open so Cancel always discards unsaved edits.
+*@
+@using WreFigDemo.Models
+@using WreFigDemo.Models.Entities
+@using WreFigDemo.Models.ViewModels
+@inject IBranchInstructionService InstructionSvc
+@inject BranchInstructionBroadcastService Broadcast
+
+<div class="instr-editor-overlay" @onclick="TryClose">
+    <div class="instr-editor-panel" @onclick:stopPropagation="true">
+
+        @* Header *@
+        <div class="instr-editor-hdr">
+            <div>
+                <div class="instr-editor-title">Edit Branch Instructions</div>
+                <div class="instr-editor-subtitle">@BranchName</div>
+            </div>
+            <button class="btn btn-ghost" @onclick="TryClose" style="font-size:18px;line-height:1;padding:4px 10px">✕</button>
+        </div>
+
+        @* Scrollable body *@
+        <div class="instr-editor-body">
+
+            @* ── TOP sections (black header) ──────────────────────────── *@
+            <div class="instr-pos-divider">
+                Top Instructions — displayed above the schedule grid
+            </div>
+
+            @foreach (var sec in _editVm.Sections.Where(s => s.Position == InstructionPosition.Top))
+            {
+                <div class="instr-ed-group">
+                    <div class="instr-ed-group-hdr instr-ed-hdr-dark">@sec.SectionTitle</div>
+
+                    @foreach (var line in sec.Lines.Where(l => !l.IsDeleted))
+                    {
+                        var ln = line; @* capture for lambda *@
+                        <div class="instr-ed-line-row">
+                            <textarea class="instr-ed-textarea @(ln.IsHighlighted ? "instr-ed-hl" : "")"
+                                      @bind="ln.Content"
+                                      @bind:event="oninput"
+                                      placeholder="Enter instruction…"
+                                      rows="1"></textarea>
+                            <button class="instr-hl-btn"
+                                    title="@(ln.IsHighlighted ? "Remove urgent highlight" : "Mark as urgent (red + blinking)")"
+                                    @onclick="() => ln.IsHighlighted = !ln.IsHighlighted">
+                                @(ln.IsHighlighted ? "🔴" : "⚪")
+                            </button>
+                            <button class="instr-del-btn" title="Remove line"
+                                    @onclick="() => ln.IsDeleted = true">✕</button>
+                        </div>
+                    }
+                    <button class="instr-add-btn" @onclick="() => AddLine(sec)">+ Add line</button>
+                </div>
+            }
+
+            @* ── BOTTOM sections (yellow header) ──────────────────────── *@
+            <div class="instr-pos-divider">
+                Dispatch / Logistics Notes — displayed below the schedule grid
+            </div>
+
+            @foreach (var sec in _editVm.Sections.Where(s => s.Position == InstructionPosition.Bottom))
+            {
+                <div class="instr-ed-group">
+                    <div class="instr-ed-group-hdr instr-ed-hdr-yellow">@sec.SectionTitle</div>
+
+                    @foreach (var line in sec.Lines.Where(l => !l.IsDeleted))
+                    {
+                        var ln = line;
+                        <div class="instr-ed-line-row">
+                            <textarea class="instr-ed-textarea @(ln.IsHighlighted ? "instr-ed-hl" : "")"
+                                      @bind="ln.Content"
+                                      @bind:event="oninput"
+                                      placeholder="Enter note…"
+                                      rows="1"></textarea>
+                            <button class="instr-hl-btn"
+                                    title="@(ln.IsHighlighted ? "Remove urgent highlight" : "Mark as urgent (red + blinking)")"
+                                    @onclick="() => ln.IsHighlighted = !ln.IsHighlighted">
+                                @(ln.IsHighlighted ? "🔴" : "⚪")
+                            </button>
+                            <button class="instr-del-btn" title="Remove line"
+                                    @onclick="() => ln.IsDeleted = true">✕</button>
+                        </div>
+                    }
+                    <button class="instr-add-btn" @onclick="() => AddLine(sec)">+ Add line</button>
+                </div>
+            }
+        </div>
+
+        @* Footer *@
+        <div class="instr-editor-ftr">
+            <span class="instr-ftr-legend">🔴 urgent (red + blinking) &nbsp;|&nbsp; ⚪ normal</span>
+            <span class="instr-ftr-status">
+                @if (_saving) { <span style="color:var(--ink-faint)">Saving…</span> }
+                else if (_saved) { <span style="color:#16a34a">✓ Saved — viewers notified</span> }
+            </span>
+            <div class="instr-ftr-actions">
+                <button class="btn btn-ghost" @onclick="TryClose" disabled="@_saving">Cancel</button>
+                <button class="btn btn-primary" @onclick="SaveAsync" disabled="@_saving">Save Instructions</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public BranchInstructionsVm Vm         { get; set; } = null!;
+    [Parameter, EditorRequired] public string               BranchName { get; set; } = string.Empty;
+    [Parameter]                 public string?              UserId     { get; set; }
+    [Parameter]                 public string?              UserName   { get; set; }
+    [Parameter]                 public EventCallback        OnSaved    { get; set; }
+    [Parameter]                 public EventCallback        OnClose    { get; set; }
+
+    private BranchInstructionsVm _editVm = null!;
+    private bool _saving;
+    private bool _saved;
+
+    protected override void OnParametersSet()
+    {
+        // Deep-copy on first open; don't reset while the editor is already open
+        _editVm ??= DeepCopy(Vm);
+    }
+
+    private static BranchInstructionsVm DeepCopy(BranchInstructionsVm src) => new()
+    {
+        BranchId = src.BranchId,
+        Sections = src.Sections.Select(s => new BranchInstructionSectionVm
+        {
+            SectionKey   = s.SectionKey,
+            SectionTitle = s.SectionTitle,
+            Position     = s.Position,
+            Lines        = s.Lines.Select(l => new BranchInstructionLineVm
+            {
+                Id            = l.Id,
+                Content       = l.Content,
+                IsHighlighted = l.IsHighlighted,
+                SortOrder     = l.SortOrder,
+                UpdatedByName = l.UpdatedByName,
+                UpdatedAt     = l.UpdatedAt,
+            }).ToList()
+        }).ToList()
+    };
+
+    private static void AddLine(BranchInstructionSectionVm sec) =>
+        sec.Lines.Add(new BranchInstructionLineVm { SortOrder = sec.Lines.Count });
+
+    private async Task SaveAsync()
+    {
+        if (UserId is null || UserName is null) return;
+
+        _saving = true;
+        _saved  = false;
+
+        // Re-number SortOrder from current display order
+        foreach (var sec in _editVm.Sections)
+        {
+            int order = 0;
+            foreach (var l in sec.Lines.Where(l => !l.IsDeleted))
+                l.SortOrder = order++;
+        }
+
+        await InstructionSvc.SaveAllAsync(_editVm, UserId, UserName);
+        await Broadcast.BroadcastAsync(_editVm.BranchId, UserName);
+
+        _saving = false;
+        _saved  = true;
+
+        await Task.Delay(1200);
+        await OnSaved.InvokeAsync();
+    }
+
+    private async Task TryClose()
+    {
+        if (_saving) return;
+        await OnClose.InvokeAsync();
+    }
+}

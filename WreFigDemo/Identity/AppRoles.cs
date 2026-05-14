@@ -47,6 +47,11 @@ public static class AppRoles
     public static readonly string[] RolloverRoles =
         [PlannerDashboard, DispatchSupervisor];
 
+    // Can add / edit branch-level instructions (top + bottom panels).
+    // Branch users + all dispatch/admin roles; OtherEmployee = read-only.
+    public static readonly string[] InstructionEditRoles =
+        [PlannerDashboard, FieldSupervisor, DispatchSupervisor, Planner, Dispatcher];
+
     public static bool IsGlobalRole(string role) =>
         GlobalViewRoles.Contains(role, StringComparer.OrdinalIgnoreCase);
 

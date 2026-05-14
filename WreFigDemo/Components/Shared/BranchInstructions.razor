@@ -1,0 +1,119 @@
+@*
+    Pure display component — shows one position's instruction sections (Top or Bottom).
+    Place one instance above the grid (Position=Top) and one below (Position=Bottom).
+    Edit button emits OnEditRequested so BranchGrid.razor can open the editor panel.
+*@
+@using WreFigDemo.Models
+@using WreFigDemo.Models.Entities
+@using WreFigDemo.Models.ViewModels
+@inject IBranchInstructionService InstructionSvc
+@inject BranchInstructionBroadcastService Broadcast
+@implements IDisposable
+
+@* Live-update banner — appears when another user saves while this circuit is open *@
+@if (_notifyBanner is not null)
+{
+    <div class="instr-notify-bar">
+        <span>⚡</span>
+        <span>Instructions updated by <strong>@_notifyBanner</strong> — refreshed</span>
+        <button @onclick="DismissBanner">✕</button>
+    </div>
+}
+
+@if (_sections is not null && _sections.Any(s => s.HasContent))
+{
+    <div class="instr-block @(Position == InstructionPosition.Top ? "instr-block-top" : "instr-block-bottom")">
+        @if (CanEdit || Position == InstructionPosition.Bottom)
+        {
+            <div class="instr-block-toolbar">
+                @if (Position == InstructionPosition.Bottom)
+                {
+                    <span class="instr-block-label instr-label-yellow">Dispatch / Logistics Notes</span>
+                }
+                else
+                {
+                    <span></span>
+                }
+                @if (CanEdit)
+                {
+                    <button class="btn btn-ghost btn-sm instr-edit-btn" @onclick="RequestEdit">✏ Edit</button>
+                }
+            </div>
+        }
+        <div class="instr-block-content">
+            @foreach (var sec in _sections.Where(s => s.HasContent))
+            {
+                <div class="instr-section-hdr @(Position == InstructionPosition.Top ? "instr-hdr-dark" : "instr-hdr-yellow")">
+                    @sec.SectionTitle
+                </div>
+                @foreach (var line in sec.Lines.Where(l => !l.IsDeleted))
+                {
+                    <div class="instr-line @(line.IsHighlighted ? "instr-line-urgent" : "")">@line.Content</div>
+                }
+            }
+        </div>
+    </div>
+}
+else if (CanEdit && _sections is not null)
+{
+    <div class="instr-empty-prompt">
+        <button class="btn btn-ghost btn-sm" @onclick="RequestEdit">
+            + Add @(Position == InstructionPosition.Top ? "branch instructions" : "dispatch / logistics notes")
+        </button>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public int                BranchId        { get; set; }
+    [Parameter, EditorRequired] public InstructionPosition Position        { get; set; }
+    [Parameter]                 public bool               CanEdit         { get; set; }
+    [Parameter]                 public EventCallback      OnEditRequested { get; set; }
+
+    private List<BranchInstructionSectionVm>? _sections;
+    private string? _notifyBanner;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        Broadcast.InstructionsUpdated += OnRemoteUpdate;
+    }
+
+    /// <summary>Called by BranchGrid after saving so this panel reloads immediately.</summary>
+    public async Task ReloadAsync()
+    {
+        await LoadAsync();
+        StateHasChanged();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            var vm = await InstructionSvc.GetForBranchAsync(BranchId);
+            _sections = vm.Sections.Where(s => s.Position == Position).ToList();
+        }
+        catch
+        {
+            _sections ??= [];   // degrade gracefully; table may not exist yet on first run
+        }
+    }
+
+    private async Task RequestEdit() => await OnEditRequested.InvokeAsync();
+
+    private void DismissBanner() => _notifyBanner = null;
+
+    private async Task OnRemoteUpdate(int branchId, string updatedByName)
+    {
+        if (branchId != BranchId) return;
+        await LoadAsync();
+        _notifyBanner = updatedByName;
+        await InvokeAsync(StateHasChanged);
+        _ = Task.Delay(6000).ContinueWith(_ =>
+        {
+            _notifyBanner = null;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    public void Dispose() => Broadcast.InstructionsUpdated -= OnRemoteUpdate;
+}

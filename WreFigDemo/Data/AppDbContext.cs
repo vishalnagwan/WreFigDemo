@@ -16,8 +16,9 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<AppUserBranch>       UserBranches      => Set<AppUserBranch>();
     public DbSet<AppUserResourceType> UserResourceTypes => Set<AppUserResourceType>();
-    public DbSet<ScheduleStatusCode> StatusCodes  => Set<ScheduleStatusCode>();
-    public DbSet<MonthLock>          MonthLocks   => Set<MonthLock>();
+    public DbSet<ScheduleStatusCode>  StatusCodes        => Set<ScheduleStatusCode>();
+    public DbSet<MonthLock>           MonthLocks         => Set<MonthLock>();
+    public DbSet<BranchInstruction>   BranchInstructions => Set<BranchInstruction>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -71,5 +72,15 @@ public class AppDbContext : IdentityDbContext<AppUser>
         builder.Entity<MonthLock>()
             .HasIndex(m => new { m.Year, m.Month })
             .IsUnique();
+
+        // BranchInstructions: index on int columns only (nvarchar(max) cannot be indexed in SQL Server)
+        builder.Entity<BranchInstruction>(e =>
+        {
+            e.HasIndex(i => new { i.BranchId, i.Position });
+            e.HasOne(i => i.Branch)
+             .WithMany()
+             .HasForeignKey(i => i.BranchId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
     }
 }
