@@ -5,8 +5,9 @@
 @inject NavigationManager Nav
 @inject NoteViewStateService NoteViewState
 @inject IJSRuntime JS
+@inject AppConfig AppCfg
 
-<PageTitle>WRE FIG — All Field Offices</PageTitle>
+<PageTitle>@AppCfg.Title — All Field Offices</PageTitle>
 
 @if (_loadError is not null)
 {

@@ -27,6 +27,7 @@ public class BranchInstructionService(IDbContextFactory<AppDbContext> dbFactory)
             {
                 SectionKey   = def.Key,
                 SectionTitle = def.Title,
+                ShortTitle   = def.ShortTitle,
                 Position     = def.Position,
                 Lines        = rows
                     .Where(r => r.Section == def.Key)

@@ -1,7 +1,8 @@
 @*
-    Pure display component — shows one position's instruction sections (Top or Bottom).
-    Place one instance above the grid (Position=Top) and one below (Position=Bottom).
-    Edit button emits OnEditRequested so BranchGrid.razor can open the editor panel.
+    Chip-strip + inline popover for branch instructions.
+    When AllPositions=true (default for the top slot) all sections from both
+    Top and Bottom positions are shown in one unified chip strip.
+    When AllPositions=false the component filters to Position only.
 *@
 @using WreFigDemo.Models
 @using WreFigDemo.Models.Entities
@@ -10,7 +11,7 @@
 @inject BranchInstructionBroadcastService Broadcast
 @implements IDisposable
 
-@* Live-update banner — appears when another user saves while this circuit is open *@
+@* Live-update banner *@
 @if (_notifyBanner is not null)
 {
     <div class="instr-notify-bar">
@@ -20,56 +21,80 @@
     </div>
 }
 
-@if (_sections is not null && _sections.Any(s => s.HasContent))
+@if (_sections is not null)
 {
-    <div class="instr-block @(Position == InstructionPosition.Top ? "instr-block-top" : "instr-block-bottom")">
-        @if (CanEdit || Position == InstructionPosition.Bottom)
-        {
-            <div class="instr-block-toolbar">
-                @if (Position == InstructionPosition.Bottom)
+    var withContent = _sections.Where(s => s.HasContent).OrderBy(s => s.SectionTitle).ToList();
+
+    @if (withContent.Any() || CanEdit)
+    {
+        <div class="instr-chip-bar">
+            <div class="instr-chip-strip">
+                @foreach (var sec in withContent)
                 {
-                    <span class="instr-block-label instr-label-yellow">Dispatch / Logistics Notes</span>
+                    var s = sec;
+                    <button class="instr-chip @(s.HasUrgent ? "has-urgent" : "") @(_openKey == s.SectionKey ? "active" : "")"
+                            @onclick="() => ToggleSection(s.SectionKey)">
+                        @if (s.HasUrgent)
+                        {
+                            <span class="instr-chip-dot"></span>
+                        }
+                        @s.ShortTitle
+                        <span class="instr-chip-count">@s.ActiveLineCount</span>
+                    </button>
                 }
-                else
+                @if (!withContent.Any())
                 {
-                    <span></span>
+                    <span class="instr-chip-empty">No instructions added yet</span>
+                }
+            </div>
+            <div class="instr-chip-actions">
+                @if (withContent.Any())
+                {
+                    <span class="instr-section-badge">
+                        @withContent.Count instruction@(withContent.Count == 1 ? "" : "s")
+                    </span>
                 }
                 @if (CanEdit)
                 {
                     <button class="btn btn-ghost btn-sm instr-edit-btn" @onclick="RequestEdit">✏ Edit</button>
                 }
             </div>
-        }
-        <div class="instr-block-content">
-            @foreach (var sec in _sections.Where(s => s.HasContent))
-            {
-                <div class="instr-section-hdr @(Position == InstructionPosition.Top ? "instr-hdr-dark" : "instr-hdr-yellow")">
-                    @sec.SectionTitle
-                </div>
-                @foreach (var line in sec.Lines.Where(l => !l.IsDeleted))
-                {
-                    <div class="instr-line @(line.IsHighlighted ? "instr-line-urgent" : "")">@line.Content</div>
-                }
-            }
         </div>
-    </div>
-}
-else if (CanEdit && _sections is not null)
-{
-    <div class="instr-empty-prompt">
-        <button class="btn btn-ghost btn-sm" @onclick="RequestEdit">
-            + Add @(Position == InstructionPosition.Top ? "branch instructions" : "dispatch / logistics notes")
-        </button>
-    </div>
+
+        @* Inline popover — appears below the chip strip *@
+        @if (_openKey is not null)
+        {
+            var openSec = withContent.FirstOrDefault(s => s.SectionKey == _openKey);
+            @if (openSec is not null)
+            {
+                var isBottom = openSec.Position == InstructionPosition.Bottom;
+                <div class="instr-popover @(isBottom ? "instr-popover-bottom" : "instr-popover-top")">
+                    <div class="instr-popover-hdr instr-hdr-accent">
+                        <span>@openSec.SectionTitle</span>
+                        <button class="instr-popover-close" @onclick="() => _openKey = null">✕</button>
+                    </div>
+                    <div class="instr-popover-body">
+                        @foreach (var line in openSec.Lines.Where(l => !l.IsDeleted && !string.IsNullOrWhiteSpace(l.Content)))
+                        {
+                            <div class="instr-line @(line.IsHighlighted ? "instr-line-urgent" : "")">@line.Content</div>
+                        }
+                    </div>
+                </div>
+            }
+        }
+    }
 }
 
 @code {
-    [Parameter, EditorRequired] public int                BranchId        { get; set; }
-    [Parameter, EditorRequired] public InstructionPosition Position        { get; set; }
-    [Parameter]                 public bool               CanEdit         { get; set; }
-    [Parameter]                 public EventCallback      OnEditRequested { get; set; }
+    [Parameter, EditorRequired] public int                 BranchId      { get; set; }
+    [Parameter]                 public InstructionPosition Position      { get; set; } = InstructionPosition.Top;
+    /// <summary>When true, shows chips for all positions in one unified strip.</summary>
+    [Parameter]                 public bool                AllPositions  { get; set; } = false;
+    [Parameter]                 public bool                CanEdit       { get; set; }
+    [Parameter]                 public EventCallback       OnEditRequested { get; set; }
 
     private List<BranchInstructionSectionVm>? _sections;
+    private string? _openKey;
     private string? _notifyBanner;
 
     protected override async Task OnInitializedAsync()
@@ -78,9 +103,9 @@ else if (CanEdit && _sections is not null)
         Broadcast.InstructionsUpdated += OnRemoteUpdate;
     }
 
-    /// <summary>Called by BranchGrid after saving so this panel reloads immediately.</summary>
     public async Task ReloadAsync()
     {
+        _openKey = null;
         await LoadAsync();
         StateHasChanged();
     }
@@ -90,13 +115,18 @@ else if (CanEdit && _sections is not null)
         try
         {
             var vm = await InstructionSvc.GetForBranchAsync(BranchId);
-            _sections = vm.Sections.Where(s => s.Position == Position).ToList();
+            _sections = AllPositions
+                ? vm.Sections.ToList()
+                : vm.Sections.Where(s => s.Position == Position).ToList();
         }
         catch
         {
-            _sections ??= [];   // degrade gracefully; table may not exist yet on first run
+            _sections ??= [];
         }
     }
+
+    private void ToggleSection(string key) =>
+        _openKey = _openKey == key ? null : key;
 
     private async Task RequestEdit() => await OnEditRequested.InvokeAsync();
 

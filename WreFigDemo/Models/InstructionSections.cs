@@ -8,21 +8,21 @@ namespace WreFigDemo.Models;
 /// </summary>
 public static class InstructionSections
 {
-    public sealed record SectionDef(string Key, string Title, InstructionPosition Position);
+    public sealed record SectionDef(string Key, string Title, string ShortTitle, InstructionPosition Position);
 
     public static readonly SectionDef[] All =
     [
-        new("ServiceLimitations",     "Service Limitations",                                                                   InstructionPosition.Top),
-        new("LobSpecificInfo",        "LOB Specific Info",                                                                    InstructionPosition.Top),
-        new("OnCallHours",            "On Call Hours",                                                                        InstructionPosition.Top),
-        new("TruckEquipmentAlerts",   "Truck / Equipment Status Alerts",                                                      InstructionPosition.Top),
-        new("AssignmentRouting",      "Assignment / Routing Notes",                                                           InstructionPosition.Top),
-        new("SupervisorEscalation",   "Supervisor Contact / Escalation Notes",                                                InstructionPosition.Top),
-        new("Disposal",               "Disposal Considerations",                                                              InstructionPosition.Top),
-        new("TruckBreakdowns",        "Truck Breakdowns / Accidents / Safety / Environmental (Spills, etc.)",                 InstructionPosition.Top),
-        new("OtherNotes",             "Other Notes",                                                                          InstructionPosition.Top),
-        new("DispatchConsiderations", "Dispatch Considerations",                                                              InstructionPosition.Bottom),
-        new("LogisticsConsiderations","Logistics Considerations",                                                             InstructionPosition.Bottom),
+        new("ServiceLimitations",     "Service Limitations",                                                              "LIMITS",     InstructionPosition.Top),
+        new("LobSpecificInfo",        "LOB Specific Info",                                                               "LOB INFO",   InstructionPosition.Top),
+        new("OnCallHours",            "On Call Hours",                                                                   "ON CALL",    InstructionPosition.Top),
+        new("TruckEquipmentAlerts",   "Truck / Equipment Status Alerts",                                                 "TRUCKS",     InstructionPosition.Top),
+        new("AssignmentRouting",      "Assignment / Routing Notes",                                                      "ROUTING",    InstructionPosition.Top),
+        new("SupervisorEscalation",   "Supervisor Contact / Escalation Notes",                                           "ESCALATE",   InstructionPosition.Top),
+        new("Disposal",               "Disposal Considerations",                                                         "DISPOSAL",   InstructionPosition.Top),
+        new("TruckBreakdowns",        "Truck Breakdowns / Accidents / Safety / Environmental (Spills, etc.)",            "BREAKDOWN",  InstructionPosition.Top),
+        new("OtherNotes",             "Other Notes",                                                                     "OTHER",      InstructionPosition.Top),
+        new("DispatchConsiderations", "Dispatch Considerations",                                                         "DISPATCH",   InstructionPosition.Bottom),
+        new("LogisticsConsiderations","Logistics Considerations",                                                        "LOGISTICS",  InstructionPosition.Bottom),
     ];
 
     public static SectionDef? Find(string key) =>

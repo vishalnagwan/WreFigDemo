@@ -3,8 +3,9 @@
 @inject IUserService UserSvc
 @inject IBranchService BranchSvc
 @inject AuthenticationStateProvider AuthState
+@inject AppConfig AppCfg
 
-<PageTitle>WRE FIG — User Management</PageTitle>
+<PageTitle>@AppCfg.Title — User Management</PageTitle>
 
 <div class="page-header">
     <h1 class="page-title">User Management</h1>

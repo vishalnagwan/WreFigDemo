@@ -2,8 +2,9 @@
 @attribute [Authorize(Roles = "PlannerDashboard,FieldSupervisor,DispatchSupervisor,Planner")]
 @inject IBranchService BranchSvc
 @inject AuthenticationStateProvider AuthState
+@inject AppConfig AppCfg
 
-<PageTitle>WRE FIG — Field Office Compliance</PageTitle>
+<PageTitle>@AppCfg.Title — Field Office Compliance</PageTitle>
 
 <div class="page-header">
     <div>

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using WreFigDemo;
 using WreFigDemo.Components;
 using WreFigDemo.Data;
 using WreFigDemo.Data.Seed;
@@ -7,6 +8,10 @@ using WreFigDemo.Identity;
 using WreFigDemo.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// App display config — edit "App" section in appsettings.json to rename the product
+var appConfig = builder.Configuration.GetSection("App").Get<AppConfig>() ?? new AppConfig();
+builder.Services.AddSingleton(appConfig);
 
 // EF Core + Identity
 builder.Services.AddDbContext<AppDbContext>(options =>

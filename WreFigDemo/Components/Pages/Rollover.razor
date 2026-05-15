@@ -2,8 +2,9 @@
 @attribute [Authorize(Roles = "PlannerDashboard,DispatchSupervisor")]
 @inject IMonthStateService MonthStateSvc
 @inject AuthenticationStateProvider AuthState
+@inject AppConfig AppCfg
 
-<PageTitle>WRE FIG — Month Rollover</PageTitle>
+<PageTitle>@AppCfg.Title — Month Rollover</PageTitle>
 
 <div class="page-header">
     <div>

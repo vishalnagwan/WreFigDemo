@@ -29,7 +29,7 @@
                 Top Instructions — displayed above the schedule grid
             </div>
 
-            @foreach (var sec in _editVm.Sections.Where(s => s.Position == InstructionPosition.Top))
+            @foreach (var sec in _editVm.Sections.Where(s => s.Position == InstructionPosition.Top).OrderBy(s => s.SectionTitle))
             {
                 <div class="instr-ed-group">
                     <div class="instr-ed-group-hdr instr-ed-hdr-dark">@sec.SectionTitle</div>
@@ -58,10 +58,10 @@
 
             @* ── BOTTOM sections (yellow header) ──────────────────────── *@
             <div class="instr-pos-divider">
-                Dispatch / Logistics Notes — displayed below the schedule grid
+                Below-grid Notes — displayed below the schedule grid
             </div>
 
-            @foreach (var sec in _editVm.Sections.Where(s => s.Position == InstructionPosition.Bottom))
+            @foreach (var sec in _editVm.Sections.Where(s => s.Position == InstructionPosition.Bottom).OrderBy(s => s.SectionTitle))
             {
                 <div class="instr-ed-group">
                     <div class="instr-ed-group-hdr instr-ed-hdr-yellow">@sec.SectionTitle</div>

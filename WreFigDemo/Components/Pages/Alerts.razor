@@ -3,8 +3,9 @@
 @inject IAuditService AuditSvc
 @inject AlertReadStateService ReadState
 @inject AuthenticationStateProvider AuthState
+@inject AppConfig AppCfg
 
-<PageTitle>WRE FIG — Change Alerts</PageTitle>
+<PageTitle>@AppCfg.Title — Change Alerts</PageTitle>
 
 <div class="alerts-header">
     <div>

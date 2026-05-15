@@ -11,8 +11,9 @@
 @inject AuthenticationStateProvider AuthState
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject AppConfig AppCfg
 
-<PageTitle>Schedule — @(Summary?.BranchName ?? "Branch")</PageTitle>
+<PageTitle>@AppCfg.Title — @(Summary?.BranchName ?? "Schedule")</PageTitle>
 
 @if (Loading)
 {
@@ -54,10 +55,10 @@ else if (Grid is not null)
         </div>
     </div>
 
-    @* Top branch instructions — above fill bar and apply status *@
+    @* Unified instruction chip strip — all sections in one row *@
     <BranchInstructions @ref="_topInstructions"
                         BranchId="BranchId"
-                        Position="InstructionPosition.Top"
+                        AllPositions="true"
                         CanEdit="CanInstructionEdit"
                         OnEditRequested="OpenInstructionEditor" />
 
@@ -175,13 +176,17 @@ else if (Grid is not null)
         </table>
     </div>
 
-    @* Bottom dispatch/logistics notes — below the grid, sibling not wrapper *@
-    <div style="margin-top:8px">
-        <BranchInstructions @ref="_bottomInstructions"
-                            BranchId="BranchId"
-                            Position="InstructionPosition.Bottom"
-                            CanEdit="CanInstructionEdit"
-                            OnEditRequested="OpenInstructionEditor" />
+    @* Legend — immediately after the grid *@
+    <div class="legend">
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--purple-am);border-color:var(--purple-am-border)"></span>WA - Working AM</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--pink-pm);border-color:var(--pink-pm-border)"></span>WP - Working PM</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--blackout-bg);border-color:var(--blackout-border)"></span><span style="color:var(--ink-light)">O - PTO</span></div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--callout-bg);border-color:var(--callout-border)"></span>CO - Call-out</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--oncall-bg);border-color:var(--oncall-border)"></span>OC - On-call</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--training-bg);border-color:var(--training-border)"></span>TR - Training</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--holiday-bg);border-color:var(--holiday-border)"></span>HD - Holiday</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--weather-bg);border-color:var(--weather-border)"></span>WX - Weather</div>
+        <div class="legend-item" style="margin-left:auto"><span style="color:var(--note-dot);font-size:10px">●</span>&nbsp;has note</div>
     </div>
 
     @* Instruction editor overlay *@
@@ -194,19 +199,6 @@ else if (Grid is not null)
                                  OnSaved="HandleInstructionSaved"
                                  OnClose="CloseInstructionEditor" />
     }
-
-    @* Legend *@
-    <div class="legend">
-        <div class="legend-item"><span class="legend-swatch" style="background:var(--purple-am);border-color:var(--purple-am-border)"></span>WA - Working AM</div>
-        <div class="legend-item"><span class="legend-swatch" style="background:var(--pink-pm);border-color:var(--pink-pm-border)"></span>WP - Working PM</div>
-        <div class="legend-item"><span class="legend-swatch" style="background:var(--blackout-bg);border-color:var(--blackout-border)"></span><span style="color:var(--ink-light)">O - PTO</span></div>
-        <div class="legend-item"><span class="legend-swatch" style="background:var(--callout-bg);border-color:var(--callout-border)"></span>CO - Call-out</div>
-        <div class="legend-item"><span class="legend-swatch" style="background:var(--oncall-bg);border-color:var(--oncall-border)"></span>OC - On-call</div>
-        <div class="legend-item"><span class="legend-swatch" style="background:var(--training-bg);border-color:var(--training-border)"></span>TR - Training</div>
-        <div class="legend-item"><span class="legend-swatch" style="background:var(--holiday-bg);border-color:var(--holiday-border)"></span>HD - Holiday</div>
-        <div class="legend-item"><span class="legend-swatch" style="background:var(--weather-bg);border-color:var(--weather-border)"></span>WX - Weather</div>
-        <div class="legend-item" style="margin-left:auto"><span style="color:var(--note-dot);font-size:10px">●</span>&nbsp;has note</div>
-    </div>
 
     @* Day detail panel *@
     @if (DetailRow is not null)
@@ -236,7 +228,6 @@ else if (Grid is not null)
 
     // Instruction editor state
     private BranchInstructions?    _topInstructions;
-    private BranchInstructions?    _bottomInstructions;
     private bool                   _instructionEditorOpen;
     private BranchInstructionsVm?  _instructionVm;
 
@@ -470,8 +461,7 @@ else if (Grid is not null)
     {
         _instructionEditorOpen = false;
         _instructionVm         = null;
-        if (_topInstructions    is not null) await _topInstructions.ReloadAsync();
-        if (_bottomInstructions is not null) await _bottomInstructions.ReloadAsync();
+        if (_topInstructions is not null) await _topInstructions.ReloadAsync();
     }
 
 }

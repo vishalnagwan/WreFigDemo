@@ -19,10 +19,13 @@ public class BranchInstructionSectionVm
 {
     public string                        SectionKey   { get; set; } = string.Empty;
     public string                        SectionTitle { get; set; } = string.Empty;
+    public string                        ShortTitle   { get; set; } = string.Empty;
     public InstructionPosition           Position     { get; set; }
     public List<BranchInstructionLineVm> Lines        { get; set; } = [];
 
-    public bool HasContent => Lines.Any(l => !l.IsDeleted && !string.IsNullOrWhiteSpace(l.Content));
+    public bool HasContent      => Lines.Any(l => !l.IsDeleted && !string.IsNullOrWhiteSpace(l.Content));
+    public bool HasUrgent       => Lines.Any(l => !l.IsDeleted && !string.IsNullOrWhiteSpace(l.Content) && l.IsHighlighted);
+    public int  ActiveLineCount => Lines.Count(l => !l.IsDeleted && !string.IsNullOrWhiteSpace(l.Content));
 }
 
 public class BranchInstructionsVm
